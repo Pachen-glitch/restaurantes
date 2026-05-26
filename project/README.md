@@ -58,3 +58,17 @@ Ingresa el ID del usuario (ej: u1): u1
 ```
 
 Para u1 se recomienda El Fogon (visitado por Carlos M., usuario similar).
+
+## Instalacion rapida (recomendado)
+
+Ejecuta el instalador que configura dependencias y conexion con AuraDB:
+
+```bash
+python instalar.py
+```
+
+El script:
+1. Instala `neo4j` y `python-dotenv`
+2. Te pide URI, usuario y contrasena de AuraDB
+3. Guarda la configuracion en `.env`
+4. Prueba la conexion con Neo4j
