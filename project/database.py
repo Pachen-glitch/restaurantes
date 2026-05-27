@@ -1,52 +1,280 @@
-﻿"""
-Conexion con Neo4j AuraDB usando GraphDatabase.driver.
-Lee credenciales desde variables de entorno o archivo .env
+"""
+Conexion con Neo4j AuraDB.
+Carga y validacion profesional de variables desde .env con debug detallado.
 """
 
+from __future__ import annotations
+
 import os
+import sys
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
+from neo4j.exceptions import AuthError, Neo4jError, ServiceUnavailable
 
-# Cargar .env del directorio del proyecto
-load_dotenv(Path(__file__).resolve().parent / ".env")
+# ---------------------------------------------------------------------------
+# Rutas del proyecto y candidatos de .env
+# ---------------------------------------------------------------------------
+PROJECT_DIR = Path(__file__).resolve().parent
+ENV_CANDIDATES = (
+    PROJECT_DIR / ".env",
+    PROJECT_DIR.parent / ".env",
+)
 
-URI = os.getenv("NEO4J_URI", "")
-USER = os.getenv("NEO4J_USER", "neo4j")
-PASSWORD = os.getenv("NEO4J_PASSWORD", "")
+# Variable global: ruta del .env efectivamente cargado
+LOADED_ENV_PATH: Optional[Path] = None
 
-_driver = None
+# Activar debug: variable de entorno DEBUG_NEO4J=1 o argumento --debug
+DEBUG = os.getenv("DEBUG_NEO4J", "").strip().lower() in ("1", "true", "yes", "on")
+if "--debug" in sys.argv:
+    DEBUG = True
 
 
-def get_driver():
-    global _driver
-    if _driver is not None:
-        return _driver
-    if not URI:
+def _debug(msg: str) -> None:
+    """Imprime mensajes de depuracion si DEBUG esta activo."""
+    if DEBUG:
+        print(f"[DEBUG] {msg}")
+
+
+def _clean_env_value(value: Optional[str]) -> str:
+    """
+    Limpia valores del .env:
+    - None -> cadena vacia
+    - strip() para espacios, tabs, saltos de linea
+    - elimina comillas envolventes simples o dobles
+    """
+    if value is None:
+        return ""
+    cleaned = value.strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in ('"', "'"):
+        cleaned = cleaned[1:-1].strip()
+    return cleaned
+
+
+def _mask_secret(secret: str) -> str:
+    """Enmascara un secreto mostrando solo pistas seguras."""
+    if not secret:
+        return "(vacio)"
+    if len(secret) <= 4:
+        return "*" * len(secret)
+    return f"{secret[:2]}...{secret[-2:]} (len={len(secret)})"
+
+
+def load_environment() -> Path:
+    """
+    Busca y carga .env desde project/.env o ../.env.
+    Retorna la ruta del archivo cargado.
+    Lanza FileNotFoundError si ninguno existe.
+    """
+    global LOADED_ENV_PATH
+
+    print("[DEBUG] Buscando archivo .env...")
+    for candidate in ENV_CANDIDATES:
+        exists = candidate.exists()
+        print(f"[DEBUG]   - {candidate} -> {'ENCONTRADO' if exists else 'no existe'}")
+        if exists:
+            # override=True para que el .env del proyecto tenga prioridad sobre variables previas
+            loaded = load_dotenv(dotenv_path=candidate, override=True, encoding="utf-8-sig")
+            print(f"[DEBUG] load_dotenv() retorno: {loaded}")
+            LOADED_ENV_PATH = candidate.resolve()
+            print(f"[DEBUG] .env cargado desde: {LOADED_ENV_PATH}")
+            return LOADED_ENV_PATH
+
+    raise FileNotFoundError(
+        "No se encontro archivo .env.\n"
+        f"  Buscado en:\n"
+        f"    1) {ENV_CANDIDATES[0]}\n"
+        f"    2) {ENV_CANDIDATES[1]}\n"
+        "  Crea uno con NEO4J_URI, NEO4J_USER y NEO4J_PASSWORD."
+    )
+
+
+def read_neo4j_config() -> dict:
+    """
+    Lee y valida configuracion Neo4j desde variables de entorno.
+    Soporta NEO4J_USER y NEO4J_USERNAME (compatibilidad).
+    """
+    uri = _clean_env_value(os.getenv("NEO4J_URI"))
+    user = _clean_env_value(os.getenv("NEO4J_USERNAME")) or _clean_env_value(
+        os.getenv("NEO4J_USER")
+    )
+    password = _clean_env_value(os.getenv("NEO4J_PASSWORD"))
+    database = (
+        _clean_env_value(os.getenv("NEO4J_DATABASE"))
+        or _clean_env_value(os.getenv("AURA_INSTANCEID"))
+        or "neo4j"
+    )
+
+    print("[DEBUG] --- Variables despues de limpieza (.strip / comillas) ---")
+    print(f"[DEBUG] URI: {uri if uri else '(vacio)'}")
+    user_source = "NEO4J_USERNAME" if _clean_env_value(os.getenv("NEO4J_USERNAME")) else (
+        "NEO4J_USER" if _clean_env_value(os.getenv("NEO4J_USER")) else "ninguna"
+    )
+    print(f"[DEBUG] USER: {user if user else '(vacio)'} (fuente: {user_source})")
+    print(f"[DEBUG] DATABASE: {database}")
+    print(f"[DEBUG] PASSWORD cargada: {'SI' if password else 'NO'}")
+    if password:
+        print(f"[DEBUG] PASSWORD preview: {_mask_secret(password)}")
+        print(f"[DEBUG] PASSWORD longitud: {len(password)}")
+
+    missing = []
+    if not uri:
+        missing.append("NEO4J_URI")
+    if not user:
+        missing.append("NEO4J_USER (o NEO4J_USERNAME)")
+    if not password:
+        missing.append("NEO4J_PASSWORD")
+
+    if missing:
+        env_hint = str(LOADED_ENV_PATH) if LOADED_ENV_PATH else "archivo .env"
         raise ValueError(
-            "NEO4J_URI no configurada. Ejecuta: python instalar.py"
+            "Faltan variables obligatorias en .env:\n"
+            + "\n".join(f"  - Falta {name}" for name in missing)
+            + f"\n  Archivo revisado: {env_hint}"
         )
-    if not PASSWORD:
+
+    # Validaciones de formato comunes en AuraDB
+    if not uri.startswith(("neo4j+s://", "neo4j+ssc://", "bolt+s://", "neo4j://", "bolt://")):
+        print(f"[DEBUG] ADVERTENCIA: URI con esquema inusual: {uri.split('://')[0]}://")
+
+    if " " in uri or " " in user:
         raise ValueError(
-            "NEO4J_PASSWORD no configurada. Ejecuta: python instalar.py"
+            "URI o USER contienen espacios internos despues de limpiar. "
+            "Revisa tu archivo .env."
         )
-    _driver = GraphDatabase.driver(URI, auth=(USER, PASSWORD))
-    return _driver
+
+    return {"uri": uri, "user": user, "password": password, "database": database}
+
+
+# Cargar .env al importar el modulo
+try:
+    load_environment()
+except FileNotFoundError as exc:
+    print(f"[WARN] {exc}")
+
+_connection = None
+
+
+class ConnectionError(Exception):
+    """Error al conectar o autenticar con Neo4j AuraDB."""
+
+
+class Neo4jConnection:
+    """Gestiona la conexion con Neo4j AuraDB."""
+
+    def __init__(self, debug: bool = DEBUG):
+        self.debug = debug
+        self._driver = None
+        self.config = read_neo4j_config()
+        self.uri = self.config["uri"]
+        self.user = self.config["user"]
+        self.password = self.config["password"]
+        self.database = self.config["database"]
+        self._connect()
+
+    def _connect(self) -> None:
+        print("[DEBUG] --- Intentando conectar a Neo4j ---")
+        print(f"[DEBUG] URI final: {self.uri}")
+        print(f"[DEBUG] USER final: {self.user}")
+        print(f"[DEBUG] PASSWORD longitud final: {len(self.password)}")
+        print(f"[DEBUG] PASSWORD preview: {_mask_secret(self.password)}")
+
+        try:
+            self._driver = GraphDatabase.driver(
+                self.uri,
+                auth=(self.user, self.password),
+            )
+            print("[DEBUG] Driver GraphDatabase creado correctamente.")
+        except Exception as exc:
+            raise ConnectionError(
+                f"No se pudo crear el driver de Neo4j.\n"
+                f"  Tipo: {type(exc).__name__}\n"
+                f"  Detalle: {exc}"
+            ) from exc
+
+    def verify_connection(self) -> bool:
+        """Verifica conectividad y autenticacion con AuraDB."""
+        if self._driver is None:
+            raise ConnectionError("El driver no esta inicializado.")
+
+        print("[DEBUG] Ejecutando verify_connectivity()...")
+        try:
+            self._driver.verify_connectivity()
+            print("[DEBUG] verify_connectivity() OK")
+
+            with self._driver.session() as session:
+                record = session.run("RETURN 1 AS ok, 'AuraDB' AS origen").single()
+                if record:
+                    print(f"[DEBUG] Query de prueba OK: ok={record['ok']}, origen={record['origen']}")
+                return record is not None and record.get("ok") == 1
+
+        except AuthError as exc:
+            raise ConnectionError(
+                "AUTENTICACION FALLIDA (AuthError).\n"
+                "  Causas mas comunes:\n"
+                "    1) Contrasena incorrecta o expirada en Aura Console\n"
+                "    2) Usuario distinto de 'neo4j'\n"
+                "    3) Espacios o comillas extra en .env (este codigo ya hace strip)\n"
+                "    4) Instancia Aura pausada o eliminada\n"
+                f"  URI usada: {self.uri}\n"
+                f"  USER usado: {self.user}\n"
+                f"  PASSWORD len: {len(self.password)}\n"
+                f"  Neo4j code: {getattr(exc, 'code', 'N/A')}\n"
+                f"  Mensaje: {exc}"
+            ) from exc
+
+        except ServiceUnavailable as exc:
+            raise ConnectionError(
+                "SERVICIO NO DISPONIBLE (ServiceUnavailable).\n"
+                "  Causas mas comunes:\n"
+                "    1) URI incorrecta o instancia apagada\n"
+                "    2) Sin conexion a internet\n"
+                "    3) Firewall bloqueando puerto 7687\n"
+                f"  URI usada: {self.uri}\n"
+                f"  Mensaje: {exc}"
+            ) from exc
+
+        except Neo4jError as exc:
+            raise ConnectionError(
+                f"ERROR DE NEO4J ({type(exc).__name__}).\n"
+                f"  Codigo: {getattr(exc, 'code', 'N/A')}\n"
+                f"  Mensaje: {exc}"
+            ) from exc
+
+        except Exception as exc:
+            raise ConnectionError(
+                f"ERROR INESPERADO al verificar conexion.\n"
+                f"  Tipo: {type(exc).__name__}\n"
+                f"  Mensaje: {exc}"
+            ) from exc
+
+    def get_session(self):
+        if self._driver is None:
+            raise ConnectionError("Conexion no inicializada.")
+        return self._driver.session(database=self.database)
+
+    def close(self) -> None:
+        if self._driver is not None:
+            self._driver.close()
+            self._driver = None
+            print("[DEBUG] Driver cerrado.")
+
+
+def get_connection() -> Neo4jConnection:
+    global _connection
+    if _connection is None:
+        _connection = Neo4jConnection()
+    return _connection
 
 
 def get_session():
-    return get_driver().session()
+    return get_connection().get_session()
 
 
-def close():
-    global _driver
-    if _driver is not None:
-        _driver.close()
-        _driver = None
-
-
-def verify_connection():
-    with get_session() as session:
-        record = session.run("RETURN 1 AS ok").single()
-        return record is not None and record["ok"] == 1
+def close() -> None:
+    global _connection
+    if _connection is not None:
+        _connection.close()
+        _connection = None

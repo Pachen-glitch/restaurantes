@@ -1,82 +1,83 @@
-﻿"""Menu interactivo del sistema de recomendacion."""
+"""Menu interactivo del sistema de recomendacion de restaurantes."""
 
 import sys
 import database
-import recommendation
-import seed_data
+from recommendation import (
+    imprimir_historial,
+    imprimir_recomendaciones,
+    imprimir_usuarios,
+    obtener_historial_usuario,
+    obtener_usuarios,
+    recomendar_restaurantes,
+    usuario_existe,
+)
+from seed_data import crear_base_datos
+
+SEP = "=" * 60
 
 
-def mostrar_menu():
-    print("\n" + "=" * 60)
-    print(" SISTEMA DE RECOMENDACION DE RESTAURANTES (Neo4j)")
-    print("=" * 60)
-    print("  1. Cargar datos")
+def pedir_usuario():
+    uid = input("\nIngresa ID de usuario (u1, u2, u3): ").strip()
+    if uid not in ("u1", "u2", "u3"):
+        print("ID invalido.")
+        return None
+    if not usuario_existe(uid):
+        print(f"Usuario {uid} no existe. Ejecuta opcion 1 primero.")
+        return None
+    return uid
+
+
+def menu():
+    print(f"\n{SEP}\n  SISTEMA DE RECOMENDACION DE RESTAURANTES\n{SEP}")
+    print("  1. Crear base de datos")
     print("  2. Ver usuarios")
     print("  3. Recomendar restaurantes")
-    print("  4. Ver restaurantes visitados por un usuario")
+    print("  4. Ver historial de usuario")
     print("  5. Salir")
-    print("=" * 60)
-
-
-def solicitar_usuario_id():
-    usuario_id = input("\nIngresa el ID del usuario (ej: u1): ").strip()
-    if not usuario_id:
-        print("Debes ingresar un ID de usuario.")
-        return None
-    if not recommendation.usuario_existe(usuario_id):
-        print(f"El usuario '{usuario_id}' no existe.")
-        return None
-    return usuario_id
+    print(SEP)
 
 
 def main():
     print("\nBienvenido al sistema de recomendacion de restaurantes.")
     try:
-        if not database.verify_connection():
-            print("No se pudo verificar la conexion con Neo4j.")
-            sys.exit(1)
-        print("Conexion con Neo4j establecida correctamente.")
-    except Exception as error:
-        print(f"\nError de conexion: {error}")
-        print("Configura NEO4J_URI, NEO4J_USER y NEO4J_PASSWORD.\n")
+        if database.get_connection().verify_connection():
+            print("Conexion con Neo4j AuraDB verificada.\n")
+    except (ValueError, database.ConnectionError) as exc:
+        print(f"Error de conexion: {exc}\n")
         sys.exit(1)
 
     while True:
-        mostrar_menu()
-        opcion = input("Selecciona una opcion: ").strip()
-
-        if opcion == "5":
+        menu()
+        op = input("Selecciona una opcion: ").strip()
+        if op == "5":
             print("\nHasta luego!\n")
             break
-        if opcion == "1":
+        elif op == "1":
             try:
-                seed_data.cargar_datos()
-            except Exception as error:
-                print(f"Error al cargar datos: {error}")
-        elif opcion == "2":
+                crear_base_datos()
+            except Exception as exc:
+                print(f"Error: {exc}")
+        elif op == "2":
             try:
-                recommendation.imprimir_usuarios(recommendation.obtener_usuarios())
-            except Exception as error:
-                print(f"Error al obtener usuarios: {error}")
-        elif opcion == "3":
-            usuario_id = solicitar_usuario_id()
-            if usuario_id:
+                imprimir_usuarios(obtener_usuarios())
+            except Exception as exc:
+                print(f"Error: {exc}")
+        elif op == "3":
+            uid = pedir_usuario()
+            if uid:
                 try:
-                    recs = recommendation.recomendar_restaurantes(usuario_id)
-                    recommendation.imprimir_recomendaciones(usuario_id, recs)
-                except Exception as error:
-                    print(f"Error al recomendar: {error}")
-        elif opcion == "4":
-            usuario_id = solicitar_usuario_id()
-            if usuario_id:
+                    imprimir_recomendaciones(uid, recomendar_restaurantes(uid))
+                except Exception as exc:
+                    print(f"Error: {exc}")
+        elif op == "4":
+            uid = pedir_usuario()
+            if uid:
                 try:
-                    visitas = recommendation.obtener_restaurantes_visitados(usuario_id)
-                    recommendation.imprimir_visitas(usuario_id, visitas)
-                except Exception as error:
-                    print(f"Error al consultar visitas: {error}")
+                    imprimir_historial(uid, obtener_historial_usuario(uid))
+                except Exception as exc:
+                    print(f"Error: {exc}")
         else:
             print("Opcion no valida.")
-
     database.close()
 
 

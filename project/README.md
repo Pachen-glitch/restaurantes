@@ -1,74 +1,89 @@
-﻿# Sistema de Recomendacion de Restaurantes con Neo4j
+# Sistema de Recomendacion de Restaurantes (Neo4j AuraDB)
 
-Proyecto Python con Neo4j AuraDB para recomendar restaurantes segun gustos, usuarios similares, historial, rating, presupuesto y ubicacion.
+Proyecto Python que crea automaticamente una base de grafos en **Neo4j AuraDB** y recomienda restaurantes segun gustos, usuarios similares, historial, rating y presupuesto.
 
 ## Estructura
 
 ```
 project/
-├── main.py
+├── .env
 ├── database.py
-├── recommendation.py
 ├── seed_data.py
+├── recommendation.py
+├── main.py
 ├── requirements.txt
 └── README.md
 ```
 
-## Instalacion
+## Paso 1: Instalar dependencias
 
-```bash
-cd project
-python -m venv venv
+Abre PowerShell o CMD en la carpeta `project`:
+
+```powershell
+cd c:\Users\Admin\Documents\restaurante\project
 pip install -r requirements.txt
 ```
 
-## Configuracion Neo4j
+## Paso 2: Crear archivo `.env`
 
-PowerShell:
-```powershell
-$env:NEO4J_URI="neo4j+s://xxxxxxxx.databases.neo4j.io"
-$env:NEO4J_USER="neo4j"
-$env:NEO4J_PASSWORD="tu_contrasena"
+Crea `project/.env` con tus credenciales de AuraDB (desde https://console.neo4j.io/):
+
+```env
+NEO4J_URI=neo4j+s://TU-INSTANCIA.databases.neo4j.io
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=tu_contrasena
 ```
 
-O edita URI, USER y PASSWORD en database.py.
+> **Importante:** Nunca subas `.env` a GitHub. Ya esta en `.gitignore`.
 
-## Ejecucion
+## Paso 3: Ejecutar el proyecto
 
-```bash
+```powershell
 python main.py
 ```
 
-## Menu
+## Paso 4: Crear la base de datos
 
-1. Cargar datos
-2. Ver usuarios
-3. Recomendar restaurantes (ej: u1)
-4. Ver restaurantes visitados
-5. Salir
-
-## Ejemplo
-
-```
-Selecciona una opcion: 1
-Datos cargados correctamente en Neo4j.
-
-Selecciona una opcion: 3
-Ingresa el ID del usuario (ej: u1): u1
-```
-
-Para u1 se recomienda El Fogon (visitado por Carlos M., usuario similar).
-
-## Instalacion rapida (recomendado)
-
-Ejecuta el instalador que configura dependencias y conexion con AuraDB:
-
-```bash
-python instalar.py
-```
+En el menu elige **opcion 1** (Crear base de datos).
 
 El script:
-1. Instala `neo4j` y `python-dotenv`
-2. Te pide URI, usuario y contrasena de AuraDB
-3. Guarda la configuracion en `.env`
-4. Prueba la conexion con Neo4j
+1. Conecta a AuraDB
+2. Ejecuta `MATCH (n) DETACH DELETE n`
+3. Crea zonas, cocinas, restaurantes, usuarios y visitas
+4. Muestra mensajes en consola
+
+## Paso 5: Probar recomendaciones
+
+1. Opcion **2** -> ver usuarios (u1, u2, u3)
+2. Opcion **3** -> ingresa `u1`
+3. Veras recomendaciones basadas en usuarios similares
+
+### Ejemplo esperado para u1 (Ana G.)
+
+- Ya visito: Sushi Ito (r1), La Trattoria (r2)
+- Usuario similar Carlos M. visito El Fogón (r3)
+- Recomendacion principal: **El Fogón**
+
+## Menu completo
+
+| Opcion | Accion |
+|--------|--------|
+| 1 | Crear base de datos |
+| 2 | Ver usuarios |
+| 3 | Recomendar restaurantes |
+| 4 | Ver historial de usuario |
+| 5 | Salir |
+
+## Crear base sin menu (opcional)
+
+```powershell
+python seed_data.py
+```
+
+## Solucion de problemas
+
+| Error | Solucion |
+|-------|----------|
+| Faltan variables en .env | Crea `project/.env` con URI, USER y PASSWORD |
+| Autenticacion fallida | Verifica contrasena en Aura Console |
+| Usuario no existe | Ejecuta opcion 1 para crear la base |
