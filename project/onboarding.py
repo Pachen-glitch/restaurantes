@@ -1,4 +1,4 @@
-"""Wizard de onboarding gastronomico (7 pasos, auto-avance)."""
+"""Wizard de onboarding gastronomico inmersivo (7 pasos, auto-avance)."""
 
 from __future__ import annotations
 
@@ -10,23 +10,23 @@ from styles import COLORS, FONTS
 ONBOARDING_STEPS = [
     {
         "id": "estilo",
-        "title": "Estilo gastronomico",
-        "subtitle": "Que buscas normalmente cuando sales a comer?",
+        "title": "Estilo gastronómico",
+        "subtitle": "¿Qué buscas normalmente cuando sales a comer?",
         "options": [
             {"text": "Comfort food", "weights": {"comfort_food": 5, "casual": 3, "slow_food": 2}},
             {"text": "Experiencia gourmet", "weights": {"gourmet": 5, "premium": 4, "elegant": 3}},
-            {"text": "Algo rapido", "weights": {"comida_rapida": 5, "fast_service": 4, "fast_food": 3}},
+            {"text": "Algo rápido", "weights": {"comida_rapida": 5, "fast_service": 4, "fast_food": 3}},
             {"text": "Algo trendy", "weights": {"trendy": 5, "moderno": 4, "aesthetic": 3}},
             {"text": "Lugar para conversar", "weights": {"tranquil": 5, "intimate": 4, "slow_food": 3}},
             {"text": "Lugar aesthetic", "weights": {"aesthetic": 5, "trendy": 4, "brunch": 2}},
             {"text": "Algo para compartir", "weights": {"social_grupo": 5, "comfort_food": 3, "lively": 2}},
-            {"text": "Algo practico", "weights": {"fast_service": 5, "comida_rapida": 4, "equilibrado": 2}},
+            {"text": "Algo práctico", "weights": {"fast_service": 5, "comida_rapida": 4, "equilibrado": 2}},
         ],
     },
     {
         "id": "exploracion",
-        "title": "Exploracion",
-        "subtitle": "Que tan dispuesto estas a probar lugares nuevos?",
+        "title": "Exploración",
+        "subtitle": "¿Qué tan dispuesto estás a probar lugares nuevos?",
         "options": [
             {"text": "Voy siempre a los mismos lugares", "weights": {"rutinero": 5, "tradicional": 4}},
             {"text": "A veces pruebo algo nuevo", "weights": {"equilibrado": 5, "explorador": 2}},
@@ -37,7 +37,7 @@ ONBOARDING_STEPS = [
     {
         "id": "social",
         "title": "Contexto social",
-        "subtitle": "Como suelen ser tus salidas?",
+        "subtitle": "¿Cómo suelen ser tus salidas?",
         "options": [
             {"text": "Solo", "weights": {"social_solo": 5, "tranquil": 3, "intimate": 2}},
             {"text": "Pareja", "weights": {"social_pareja": 5, "romantic": 4, "intimate": 3}},
@@ -48,8 +48,8 @@ ONBOARDING_STEPS = [
     },
     {
         "id": "energia",
-        "title": "Energia del lugar",
-        "subtitle": "Que ambiente disfrutas mas?",
+        "title": "Energía del lugar",
+        "subtitle": "¿Qué ambiente disfrutas más?",
         "options": [
             {"text": "Tranquilo", "weights": {"tranquil": 5, "slow_food": 3, "intimate": 2}},
             {"text": "Elegante", "weights": {"elegant": 5, "gourmet": 3, "premium": 3}},
@@ -62,7 +62,7 @@ ONBOARDING_STEPS = [
     {
         "id": "sabores",
         "title": "Intensidad de sabores",
-        "subtitle": "Que perfil de sabor te representa mejor?",
+        "subtitle": "¿Qué perfil de sabor te representa mejor?",
         "options": [
             {"text": "Suave", "weights": {"sabor_fresco": 5, "balanced_flavor": 4, "saludable": 2}},
             {"text": "Balanceado", "weights": {"equilibrado": 5, "balanced_flavor": 4}},
@@ -75,21 +75,21 @@ ONBOARDING_STEPS = [
     {
         "id": "presupuesto",
         "title": "Presupuesto",
-        "subtitle": "Cuanto sueles invertir por persona en una salida?",
+        "subtitle": "¿Cuánto sueles invertir por persona en una salida?",
         "options": [
             {"text": "Prefiero comer en casa", "rango": "en_casa", "weights": {"home_dining": 5, "comfort_food": 3, "ahorrador": 4}},
-            {"text": "Q50 - Q150", "rango": "q50_150", "weights": {"ahorrador": 5, "casual": 3, "street_food": 2}},
-            {"text": "Q150 - Q300", "rango": "q150_300", "weights": {"equilibrado": 5, "casual": 2}},
-            {"text": "Q300 - Q600", "rango": "q300_600", "weights": {"equilibrado": 4, "indulgente": 3}},
-            {"text": "Q600 - Q1000", "rango": "q600_1000", "weights": {"premium": 4, "gourmet": 3}},
-            {"text": "Q1000 - Q2000", "rango": "q1000_2000", "weights": {"premium": 5, "exclusive": 4, "gourmet": 3}},
-            {"text": "Mas de Q2000", "rango": "mas_2000", "weights": {"exclusive": 5, "indulgente": 4, "premium": 4}},
+            {"text": "Q50 – Q150", "rango": "q50_150", "weights": {"ahorrador": 5, "casual": 3, "street_food": 2}},
+            {"text": "Q150 – Q300", "rango": "q150_300", "weights": {"equilibrado": 5, "casual": 2}},
+            {"text": "Q300 – Q600", "rango": "q300_600", "weights": {"equilibrado": 4, "indulgente": 3}},
+            {"text": "Q600 – Q1000", "rango": "q600_1000", "weights": {"premium": 4, "gourmet": 3}},
+            {"text": "Q1000 – Q2000", "rango": "q1000_2000", "weights": {"premium": 5, "exclusive": 4, "gourmet": 3}},
+            {"text": "Más de Q2000", "rango": "mas_2000", "weights": {"exclusive": 5, "indulgente": 4, "premium": 4}},
         ],
     },
     {
         "id": "comida",
         "title": "Preferencias reales",
-        "subtitle": "Que escogerias AHORA MISMO?",
+        "subtitle": "¿Qué escogerías AHORA MISMO?",
         "card_layout": True,
         "options": [
             {"text": "Sushi premium", "emoji": "🍣", "weights": {"pref_japonesa": 5, "gourmet": 4, "premium": 3}},
@@ -97,13 +97,13 @@ ONBOARDING_STEPS = [
             {"text": "Tacos callejeros", "emoji": "🌮", "weights": {"street_food": 5, "pref_guatemalteca": 4}},
             {"text": "Pizza artesanal", "emoji": "🍕", "weights": {"pref_italiana": 5, "casual": 3}},
             {"text": "Steakhouse", "emoji": "🥩", "weights": {"contundente": 5, "premium": 4, "smoky": 3}},
-            {"text": "Cafe & brunch", "emoji": "☕", "weights": {"brunch": 5, "aesthetic": 4, "trendy": 2}},
+            {"text": "Café & brunch", "emoji": "☕", "weights": {"brunch": 5, "aesthetic": 4, "trendy": 2}},
             {"text": "Burgers gourmet", "emoji": "🍔", "weights": {"comfort_food": 4, "moderno": 3, "casual": 3}},
             {"text": "Parrillada", "emoji": "🔥", "weights": {"contundente": 5, "smoky": 4, "social_grupo": 2}},
             {"text": "Pasta cremosa", "emoji": "🍝", "weights": {"pref_italiana": 5, "slow_food": 3, "comfort_food": 2}},
             {"text": "Poke bowl", "emoji": "🥙", "weights": {"saludable": 5, "sabor_fresco": 4, "pref_japonesa": 2}},
             {"text": "Comida coreana", "emoji": "🇰🇷", "weights": {"pref_coreana": 5, "spicy": 3, "explorador": 2}},
-            {"text": "Comida mediterranea", "emoji": "🫒", "weights": {"pref_mediterranea": 5, "sabor_fresco": 3, "saludable": 2}},
+            {"text": "Comida mediterránea", "emoji": "🫒", "weights": {"pref_mediterranea": 5, "sabor_fresco": 3, "saludable": 2}},
         ],
     },
 ]
@@ -140,13 +140,14 @@ def _merge_weights(target: dict[str, float], weights: dict[str, int | float]) ->
         target[k] = target.get(k, 0.0) + float(v)
 
 
-class OnboardingWizard(ttk.Frame):
-    """Asistente de 7 pasos con tarjetas y auto-avance."""
+class OnboardingWizard(tk.Frame):
+    """Asistente inmersivo de 7 pasos con transiciones suaves."""
 
-    AUTO_MS = 400
+    AUTO_MS = 380
+    FADE_MS = 120
 
     def __init__(self, master=None, on_step_change=None, on_complete=None, **kwargs):
-        super().__init__(master, **kwargs)
+        super().__init__(master, bg=COLORS["bg"], **kwargs)
         self._on_step_change = on_step_change
         self._on_complete = on_complete
         self._step_index = 0
@@ -154,13 +155,20 @@ class OnboardingWizard(ttk.Frame):
         self._presupuesto_rango: str | None = None
         self._selections: list[int | None] = [None] * len(ONBOARDING_STEPS)
         self._pending_after_id: str | None = None
+        self._transitioning = False
 
         self.progress_var = tk.DoubleVar(value=(1 / len(ONBOARDING_STEPS)) * 100)
         self.step_label_var = tk.StringVar()
 
-        header = ttk.Frame(self, style="Card.TFrame", padding=12)
-        header.pack(fill=tk.X, pady=(0, 8))
-        ttk.Label(header, textvariable=self.step_label_var, style="Subtitle.TLabel").pack(anchor=tk.W)
+        header = tk.Frame(self, bg=COLORS["surface2"], padx=20, pady=16)
+        header.pack(fill=tk.X, pady=(0, 12))
+        tk.Label(
+            header,
+            textvariable=self.step_label_var,
+            font=FONTS["subtitle"],
+            fg=COLORS["accent"],
+            bg=COLORS["surface2"],
+        ).pack(anchor=tk.W)
         self._progress = ttk.Progressbar(
             header,
             variable=self.progress_var,
@@ -168,22 +176,32 @@ class OnboardingWizard(ttk.Frame):
             style="Horizontal.TProgressbar",
             mode="determinate",
         )
-        self._progress.pack(fill=tk.X, pady=(8, 0))
+        self._progress.pack(fill=tk.X, pady=(10, 0))
+
+        self.content = tk.Frame(self, bg=COLORS["bg"])
+        self.content.pack(fill=tk.BOTH, expand=True)
 
         self.question_var = tk.StringVar()
-        ttk.Label(self, textvariable=self.question_var, wraplength=560, style="Card.TLabel").pack(
-            anchor=tk.W, padx=4, pady=(0, 10)
+        self._question_label = tk.Label(
+            self.content,
+            textvariable=self.question_var,
+            font=FONTS["question"],
+            fg=COLORS["text"],
+            bg=COLORS["bg"],
+            wraplength=640,
+            justify=tk.LEFT,
         )
+        self._question_label.pack(anchor=tk.W, padx=8, pady=(8, 20))
 
-        self.options_frame = ttk.Frame(self)
+        self.options_frame = tk.Frame(self.content, bg=COLORS["bg"])
         self.options_frame.pack(fill=tk.BOTH, expand=True)
 
-        nav = ttk.Frame(self)
-        nav.pack(fill=tk.X, pady=12)
-        self.btn_prev = ttk.Button(nav, text="Anterior", command=self._prev_step)
+        nav = tk.Frame(self, bg=COLORS["bg"])
+        nav.pack(fill=tk.X, pady=(12, 0))
+        self.btn_prev = ttk.Button(nav, text="← Anterior", style="Secondary.TButton", command=self._prev_step)
         self.btn_prev.pack(side=tk.LEFT)
 
-        self._render_step()
+        self._render_step(notify=False)
 
     def get_final_profile(self) -> dict[str, float]:
         return dict(sorted(self._scores.items(), key=lambda x: (-x[1], x[0])))
@@ -209,14 +227,32 @@ class OnboardingWizard(ttk.Frame):
         self.reset()
         self._scores = {k: float(v) for k, v in (profile or {}).items()}
 
-    def _render_step(self) -> None:
+    def _transition_to(self, callback) -> None:
+        if self._transitioning:
+            callback()
+            return
+        self._transitioning = True
+        overlay = tk.Frame(self.content, bg=COLORS["accent_light"])
+        overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+
+        def fade_out(step=0):
+            if step >= 3:
+                overlay.destroy()
+                callback()
+                self._transitioning = False
+                return
+            self.after(self.FADE_MS // 3, lambda: fade_out(step + 1))
+
+        fade_out()
+
+    def _render_step(self, notify: bool = True) -> None:
         if self._pending_after_id:
             self.after_cancel(self._pending_after_id)
             self._pending_after_id = None
 
         step = ONBOARDING_STEPS[self._step_index]
         n = len(ONBOARDING_STEPS)
-        self.step_label_var.set("Paso %d de %d: %s" % (self._step_index + 1, n, step["title"]))
+        self.step_label_var.set("Paso %d de %d · %s" % (self._step_index + 1, n, step["title"]))
         self.progress_var.set(((self._step_index + 1) / n) * 100)
         self.question_var.set(step.get("subtitle") or step.get("title") or "")
 
@@ -238,12 +274,12 @@ class OnboardingWizard(ttk.Frame):
                 style=style,
                 command=lambda idx=i, o=opt: self._select_option(idx, o),
             )
-            btn.grid(row=i // cols, column=i % cols, sticky=tk.NSEW, padx=6, pady=6)
+            btn.grid(row=i // cols, column=i % cols, sticky=tk.NSEW, padx=8, pady=8)
         for c in range(cols):
             self.options_frame.columnconfigure(c, weight=1)
 
         self.btn_prev.state(["!disabled"] if self._step_index > 0 else ["disabled"])
-        if self._on_step_change:
+        if notify and self._on_step_change:
             self._on_step_change()
 
     def _select_option(self, index: int, option: dict) -> None:
@@ -272,8 +308,12 @@ class OnboardingWizard(ttk.Frame):
         if self._selections[self._step_index] is None:
             return
         if self._step_index < len(ONBOARDING_STEPS) - 1:
-            self._step_index += 1
-            self._render_step()
+
+            def advance():
+                self._step_index += 1
+                self._render_step()
+
+            self._transition_to(advance)
             return
         if self._on_complete:
             self._on_complete()
@@ -283,5 +323,9 @@ class OnboardingWizard(ttk.Frame):
             self.after_cancel(self._pending_after_id)
             self._pending_after_id = None
         if self._step_index > 0:
-            self._step_index -= 1
-            self._render_step()
+
+            def back():
+                self._step_index -= 1
+                self._render_step()
+
+            self._transition_to(back)

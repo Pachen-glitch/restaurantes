@@ -1,4 +1,4 @@
-"""Panel de visualizacion del grafo con matplotlib y networkx."""
+"""Panel de visualizacion del grafo — estilo gastronomico premium."""
 
 from __future__ import annotations
 
@@ -19,9 +19,10 @@ NODE_COLORS = {
     "Preference": COLORS["preference"],
 }
 
-BG = COLORS["surface"]
+BG = COLORS["graph_bg"]
 TEXT = COLORS["text"]
-MAX_RESTAURANTS = 40
+EDGE_COLOR = COLORS["graph_edge"]
+MAX_RESTAURANTS = 35
 
 
 class GraphPanel(tk.Frame):
@@ -31,7 +32,7 @@ class GraphPanel(tk.Frame):
         self._focus_user_id: str | None = None
         self._graph_data = {"nodes": [], "edges": []}
 
-        self.figure = plt.Figure(figsize=(4.4, 5.8), dpi=96, facecolor=BG)
+        self.figure = plt.Figure(figsize=(6.5, 5.5), dpi=100, facecolor=BG)
         self.ax = self.figure.add_subplot(111)
         self.ax.set_facecolor(BG)
         self.ax.axis("off")
@@ -109,7 +110,7 @@ class GraphPanel(tk.Frame):
                     ha="center",
                     va="center",
                     color=TEXT,
-                    fontsize=10,
+                    fontsize=11,
                     transform=self.ax.transAxes,
                 )
                 self.canvas.draw_idle()
@@ -132,8 +133,8 @@ class GraphPanel(tk.Frame):
                 "Sin datos de grafo",
                 ha="center",
                 va="center",
-                color=TEXT,
-                fontsize=11,
+                color=COLORS["muted"],
+                fontsize=12,
                 transform=self.ax.transAxes,
             )
             self.canvas.draw_idle()
@@ -146,100 +147,110 @@ class GraphPanel(tk.Frame):
             src, tgt = e.get("source"), e.get("target")
             if not src or not tgt or src == tgt:
                 continue
-            g.add_edge(
-                src,
-                tgt,
-                rel=e.get("rel", ""),
-                score=e.get("score"),
-                weight=e.get("weight"),
-            )
+            g.add_edge(src, tgt, rel=e.get("rel", ""))
 
         if not g.nodes:
             self.canvas.draw_idle()
             return
 
-        pos = nx.spring_layout(g, seed=42, k=1.4, iterations=60)
+        pref_nodes = [n for n in g.nodes if g.nodes[n].get("label") == "Preference"]
+        other_nodes = [n for n in g.nodes if g.nodes[n].get("label") != "Preference"]
+        pos = {}
+        if other_nodes:
+            sub = g.subgraph(other_nodes)
+            pos.update(nx.spring_layout(sub, seed=42, k=1.8, iterations=80))
+        if pref_nodes and other_nodes:
+            import math
 
-        labels = {nid: (g.nodes[nid].get("name") or nid)[:12] for nid in g.nodes}
+            cx = sum(pos[n][0] for n in other_nodes) / len(other_nodes)
+            cy = sum(pos[n][1] for n in other_nodes) / len(other_nodes)
+            radius = 1.35
+            for i, nid in enumerate(pref_nodes):
+                angle = 2 * math.pi * i / max(1, len(pref_nodes))
+                pos[nid] = (cx + radius * math.cos(angle), cy + radius * math.sin(angle))
+        elif pref_nodes:
+            pos.update(nx.circular_layout(g))
+
+        labels = {nid: (g.nodes[nid].get("name") or nid)[:14] for nid in g.nodes}
         colors = []
         sizes = []
         for nid in g.nodes:
             label = g.nodes[nid].get("label", "")
-            base = NODE_COLORS.get(label, "#a6adc8")
+            base = NODE_COLORS.get(label, COLORS["muted"])
             if nid in self._highlight_ids:
-                colors.append(COLORS["warning"])
-                sizes.append(620)
+                colors.append(COLORS["accent2"])
+                sizes.append(680)
             else:
                 colors.append(base)
                 if label == "Preference":
-                    sizes.append(260)
+                    sizes.append(220)
                 elif label in ("User", "Restaurant"):
-                    sizes.append(460)
+                    sizes.append(520)
                 else:
-                    sizes.append(360)
+                    sizes.append(380)
 
-        nx.draw_networkx_nodes(g, pos, ax=self.ax, node_color=colors, node_size=sizes, alpha=0.95)
-        nx.draw_networkx_labels(g, pos, labels=labels, font_size=8, font_color=TEXT, ax=self.ax)
-
-        edge_labels = {}
-        for u, v in list(g.edges):
-            rel = g.edges[u, v].get("rel", "")
-            extra = ""
-            sc = g.edges[u, v].get("score")
-            wt = g.edges[u, v].get("weight")
-            if rel == "HAS_PREFERENCE" and sc is not None:
-                extra = " %.0f" % sc
-            elif rel == "MATCHES_PREFERENCE" and wt is not None:
-                extra = " %.1f" % wt
-            edge_labels[(u, v)] = (rel[:10] + extra)[:14]
+        nx.draw_networkx_nodes(
+            g,
+            pos,
+            ax=self.ax,
+            node_color=colors,
+            node_size=sizes,
+            alpha=0.92,
+            edgecolors=COLORS["card_border"],
+            linewidths=0.8,
+        )
+        nx.draw_networkx_labels(
+            g,
+            pos,
+            labels=labels,
+            font_size=9,
+            font_color=TEXT,
+            font_family="sans-serif",
+            ax=self.ax,
+        )
 
         try:
             nx.draw_networkx_edges(
                 g,
                 pos,
                 ax=self.ax,
-                edge_color="#6c7086",
+                edge_color=EDGE_COLOR,
                 arrows=True,
-                arrowsize=9,
-                width=0.9,
-                alpha=0.75,
-                connectionstyle="arc3,rad=0.15",
-            )
-            nx.draw_networkx_edge_labels(
-                g,
-                pos,
-                edge_labels=edge_labels,
-                font_size=6,
-                font_color="#bac2de",
-                ax=self.ax,
+                arrowsize=8,
+                width=0.7,
+                alpha=0.35,
+                connectionstyle="arc3,rad=0.12",
+                min_source_margin=12,
+                min_target_margin=12,
             )
         except Exception:
             nx.draw_networkx_edges(
                 g,
                 pos,
                 ax=self.ax,
-                edge_color="#6c7086",
+                edge_color=EDGE_COLOR,
                 arrows=False,
-                width=0.9,
-                alpha=0.75,
-                connectionstyle="arc3,rad=0.15",
+                width=0.7,
+                alpha=0.35,
+                connectionstyle="arc3,rad=0.12",
             )
 
         legend_items = [
-            Patch(facecolor=NODE_COLORS["User"], label="Usuario"),
-            Patch(facecolor=NODE_COLORS["Restaurant"], label="Restaurante"),
-            Patch(facecolor=NODE_COLORS["Cuisine"], label="Cocina"),
-            Patch(facecolor=NODE_COLORS["Zone"], label="Zona"),
-            Patch(facecolor=NODE_COLORS["Preference"], label="Preferencia"),
+            Patch(facecolor=NODE_COLORS["User"], label="Usuario", edgecolor="none"),
+            Patch(facecolor=NODE_COLORS["Restaurant"], label="Restaurante", edgecolor="none"),
+            Patch(facecolor=NODE_COLORS["Cuisine"], label="Cocina", edgecolor="none"),
+            Patch(facecolor=NODE_COLORS["Zone"], label="Zona", edgecolor="none"),
+            Patch(facecolor=NODE_COLORS["Preference"], label="Preferencia", edgecolor="none"),
         ]
         self.ax.legend(
             handles=legend_items,
-            loc="lower left",
-            fontsize=7,
+            loc="upper right",
+            fontsize=8,
+            framealpha=0.9,
             facecolor=COLORS["surface2"],
-            edgecolor=COLORS["surface3"],
+            edgecolor=COLORS["card_border"],
             labelcolor=TEXT,
         )
 
-        self.figure.tight_layout(pad=0.2)
+        self.figure.tight_layout(pad=0.4)
         self.canvas.draw_idle()

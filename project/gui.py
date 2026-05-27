@@ -1,4 +1,4 @@
-"""Interfaz grafica del sistema de recomendacion de restaurantes."""
+"""Interfaz grafica premium del sistema de recomendacion gastronomica."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from recommendation import (
     recomendar_restaurantes_inteligente,
     usuario_existe,
 )
+from ui_widgets import RestaurantCard, ScrollableFrame, Sidebar
 from user_manager import (
     actualizar_usuario,
     crear_usuario_base,
@@ -34,9 +35,9 @@ from restaurant_importer import import_guatemala_restaurants
 class RestaurantApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Restaurantes IA - Guatemala City")
-        self.minsize(1280, 720)
-        self.geometry("1320x760")
+        self.title("Savory — Descubrimiento gastronómico con IA")
+        self.minsize(1280, 760)
+        self.geometry("1360x820")
 
         styles.apply_theme(self)
 
@@ -45,166 +46,369 @@ class RestaurantApp(tk.Tk):
         self._current_user_id: str | None = None
         self._catalog_imported = False
         self._rec_rows: list[dict] = []
+        self._pages: dict[str, ttk.Frame] = {}
 
         self._build_layout()
         self._set_status("Iniciando...")
         self.after(100, self._startup)
 
     def _build_layout(self):
-        header = ttk.Frame(self, padding=(12, 10))
+        self.header_user_var = tk.StringVar(value="Invitado")
+        self.header_greeting_var = tk.StringVar(value="Bienvenido")
+
+        header = tk.Frame(self, bg=styles.COLORS["header"], height=72)
         header.pack(fill=tk.X)
-        ttk.Label(header, text="Restaurantes IA", style="Title.TLabel").pack(anchor=tk.W)
-        ttk.Label(
-            header,
-            text="Perfil gastronomico, catalogo Guatemala (210+) y grafo Neo4j",
-            style="Muted.TLabel",
+        header.pack_propagate(False)
+        tk.Frame(header, bg=styles.COLORS["header_border"], height=1).pack(side=tk.BOTTOM, fill=tk.X)
+
+        left_h = tk.Frame(header, bg=styles.COLORS["header"])
+        left_h.pack(side=tk.LEFT, padx=28, pady=14)
+        tk.Label(
+            left_h,
+            text="Savory",
+            font=("Segoe UI", 22, "bold"),
+            fg=styles.COLORS["accent"],
+            bg=styles.COLORS["header"],
+        ).pack(anchor=tk.W)
+        tk.Label(
+            left_h,
+            text="Descubre tu próxima experiencia gastronómica",
+            font=styles.FONTS["body"],
+            fg=styles.COLORS["subtext"],
+            bg=styles.COLORS["header"],
         ).pack(anchor=tk.W, pady=(2, 0))
 
-        paned = ttk.Panedwindow(self, orient=tk.HORIZONTAL)
-        paned.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
+        right_h = tk.Frame(header, bg=styles.COLORS["header"])
+        right_h.pack(side=tk.RIGHT, padx=28, pady=14)
+        tk.Label(
+            right_h,
+            textvariable=self.header_greeting_var,
+            font=styles.FONTS["subtitle"],
+            fg=styles.COLORS["text"],
+            bg=styles.COLORS["header"],
+        ).pack(anchor=tk.E)
+        self._user_badge = tk.Label(
+            right_h,
+            textvariable=self.header_user_var,
+            font=styles.FONTS["badge"],
+            fg=styles.COLORS["text_light"],
+            bg=styles.COLORS["accent"],
+            padx=12,
+            pady=4,
+        )
+        self._user_badge.pack(anchor=tk.E, pady=(6, 0))
 
-        left = ttk.Frame(paned)
-        right = ttk.Frame(paned, width=380)
-        paned.add(left, weight=7)
-        paned.add(right, weight=3)
+        body = tk.Frame(self, bg=styles.COLORS["bg"])
+        body.pack(fill=tk.BOTH, expand=True)
 
-        self.notebook = ttk.Notebook(left)
-        self.notebook.pack(fill=tk.BOTH, expand=True)
+        self.sidebar = Sidebar(body, on_navigate=self._show_page)
+        self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
 
-        self._tab_onb = ttk.Frame(self.notebook)
-        self._tab_perfil = ttk.Frame(self.notebook)
-        self._tab_rec = ttk.Frame(self.notebook)
-        self._tab_hist = ttk.Frame(self.notebook)
-        self.notebook.add(self._tab_onb, text="Onboarding")
-        self.notebook.add(self._tab_perfil, text="Perfil & Editar")
-        self.notebook.add(self._tab_rec, text="Recomendador IA")
-        self.notebook.add(self._tab_hist, text="Historial")
+        self.main = ttk.Frame(body, style="Content.TFrame", padding=(24, 20))
+        self.main.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self._build_tab_onboarding()
-        self._build_tab_perfil()
-        self._build_tab_rec()
-        self._build_tab_hist()
-
-        ttk.Label(right, text="Grafo Neo4j", style="Subtitle.TLabel").pack(anchor=tk.W, padx=4, pady=(0, 4))
-        self.graph_panel = GraphPanel(right)
-        self.graph_panel.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        self._build_page_home()
+        self._build_page_onboarding()
+        self._build_page_profile()
+        self._build_page_rec()
+        self._build_page_graph()
+        self._build_page_settings()
 
         self.status_var = tk.StringVar(value="Listo")
-        ttk.Label(self, textvariable=self.status_var, anchor=tk.W, relief=tk.SUNKEN).pack(
-            fill=tk.X, side=tk.BOTTOM, padx=8, pady=(0, 6)
+        status = tk.Frame(self, bg=styles.COLORS["surface3"], height=28)
+        status.pack(fill=tk.X, side=tk.BOTTOM)
+        tk.Label(
+            status,
+            textvariable=self.status_var,
+            anchor=tk.W,
+            font=styles.FONTS["small"],
+            fg=styles.COLORS["muted"],
+            bg=styles.COLORS["surface3"],
+            padx=16,
+        ).pack(fill=tk.X)
+
+        self._show_page("home")
+
+    def _page(self, key: str) -> ttk.Frame:
+        frame = ttk.Frame(self.main, style="Content.TFrame")
+        self._pages[key] = frame
+        return frame
+
+    def _show_page(self, key: str):
+        for k, frame in self._pages.items():
+            frame.pack_forget()
+        page = self._pages.get(key)
+        if page:
+            page.pack(fill=tk.BOTH, expand=True)
+        if key == "graph":
+            self._refresh_graph(self._current_user_id)
+
+    def _section_title(self, parent, title: str, subtitle: str = ""):
+        box = ttk.Frame(parent, style="Content.TFrame")
+        box.pack(fill=tk.X, pady=(0, 16))
+        ttk.Label(box, text=title, style="Hero.TLabel").pack(anchor=tk.W)
+        if subtitle:
+            ttk.Label(box, text=subtitle, style="Muted.TLabel").pack(anchor=tk.W, pady=(4, 0))
+        return box
+
+    def _build_page_home(self):
+        f = self._page("home")
+        self._section_title(
+            f,
+            "Tu mesa te espera",
+            "Perfil gastronómico + IA para recomendaciones a tu medida en Ciudad de Guatemala.",
         )
 
-    def _build_tab_onboarding(self):
-        f = self._tab_onb
+        cards = ttk.Frame(f, style="Content.TFrame")
+        cards.pack(fill=tk.X, pady=8)
+
+        for title, desc, action, page in (
+            ("🍽️ Recomendaciones", "Descubre restaurantes compatibles con tu perfil.", "Explorar", "rec"),
+            ("🧠 Crear perfil", "Responde el cuestionario en menos de 2 minutos.", "Empezar", "onboarding"),
+            ("👤 Mi perfil", "Revisa y ajusta tus preferencias gastronómicas.", "Ver perfil", "profile"),
+        ):
+            card = tk.Frame(
+                cards,
+                bg=styles.COLORS["surface2"],
+                highlightbackground=styles.COLORS["card_border"],
+                highlightthickness=1,
+                padx=20,
+                pady=18,
+            )
+            card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 12))
+            tk.Label(card, text=title, font=styles.FONTS["subtitle"], bg=styles.COLORS["surface2"], fg=styles.COLORS["text"]).pack(
+                anchor=tk.W
+            )
+            tk.Label(card, text=desc, font=styles.FONTS["small"], bg=styles.COLORS["surface2"], fg=styles.COLORS["muted"], wraplength=240, justify=tk.LEFT).pack(
+                anchor=tk.W, pady=(8, 12)
+            )
+            ttk.Button(card, text=action, style="Accent.TButton", command=lambda p=page: self._nav(p)).pack(anchor=tk.W)
+
+    def _build_page_onboarding(self):
+        f = self._page("onboarding")
+        self._section_title(f, "Onboarding gastronómico", "Cuéntanos cómo comes y te recomendamos mejor.")
+
+        form_card = tk.Frame(
+            f,
+            bg=styles.COLORS["surface2"],
+            highlightbackground=styles.COLORS["card_border"],
+            highlightthickness=1,
+            padx=20,
+            pady=16,
+        )
+        form_card.pack(fill=tk.X, pady=(0, 12))
+
         self.onb_id = tk.StringVar()
         self.onb_nombre = tk.StringVar()
         self.onb_presupuesto = tk.StringVar()
         self.onb_zona = tk.StringVar()
 
-        form = ttk.Frame(f, padding=12)
-        form.pack(fill=tk.X)
-        ttk.Label(form, textvariable=self.onb_id, style="Subtitle.TLabel").grid(row=0, column=1, sticky=tk.W, pady=6); ttk.Label(form, text="ID usuario (auto)").grid(row=0, column=0, sticky=tk.W, padx=12, pady=6)
-        self._form_row(form, 1, "Nombre", ttk.Entry(form, textvariable=self.onb_nombre, width=30))
-        self._form_row(form, 2, "Presupuesto (Q)", ttk.Entry(form, textvariable=self.onb_presupuesto, width=30))
-        self.onb_zona_cb = ttk.Combobox(form, textvariable=self.onb_zona, state="readonly", width=28)
-        self._form_row(form, 3, "Zona", self.onb_zona_cb)
+        grid = ttk.Frame(form_card, style="Card.TFrame")
+        grid.pack(fill=tk.X)
+        fields = [
+            ("ID (auto)", None, self.onb_id, True),
+            ("Tu nombre", ttk.Entry, self.onb_nombre, False),
+            ("Presupuesto (Q)", ttk.Entry, self.onb_presupuesto, False),
+            ("Zona", None, self.onb_zona, False),
+        ]
+        for i, (label, widget_cls, var, is_label) in enumerate(fields):
+            ttk.Label(grid, text=label, style="Card.TLabel").grid(row=i, column=0, sticky=tk.W, padx=4, pady=8)
+            if is_label:
+                ttk.Label(grid, textvariable=var, style="Step.TLabel").grid(row=i, column=1, sticky=tk.W, pady=8)
+            elif widget_cls is ttk.Entry:
+                widget_cls(grid, textvariable=var, width=32).grid(row=i, column=1, sticky=tk.W, pady=8)
+            else:
+                self.onb_zona_cb = ttk.Combobox(grid, textvariable=var, state="readonly", width=30)
+                self.onb_zona_cb.grid(row=i, column=1, sticky=tk.W, pady=8)
 
-        self.wizard = OnboardingWizard(f, on_step_change=self._on_wizard_step, on_complete=self._on_wizard_complete, padding=12)
+        wizard_wrap = tk.Frame(f, bg=styles.COLORS["bg"])
+        wizard_wrap.pack(fill=tk.BOTH, expand=True, pady=8)
+        self.wizard = OnboardingWizard(
+            wizard_wrap,
+            on_step_change=self._on_wizard_step,
+            on_complete=self._on_wizard_complete,
+        )
         self.wizard.pack(fill=tk.BOTH, expand=True)
+        self._on_wizard_step()
 
-        actions = ttk.Frame(f, padding=12)
-        actions.pack(fill=tk.X)
+        actions = ttk.Frame(f, style="Content.TFrame")
+        actions.pack(fill=tk.X, pady=8)
         self.btn_import_gt = ttk.Button(
             actions,
-            text="Importar catalogo Guatemala (210+)",
+            text="Importar catálogo Guatemala (210+)",
+            style="Secondary.TButton",
             command=self._on_import_guatemala,
         )
-        self.btn_import_gt.pack(side=tk.LEFT, padx=(0, 8))
-        ttk.Button(actions, text="Guardar perfil y usuario", style="Accent.TButton", command=self._on_save_onboarding).pack(
-            side=tk.LEFT
-        )
+        self.btn_import_gt.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(
+            actions,
+            text="Guardar perfil",
+            style="Accent.TButton",
+            command=self._on_save_onboarding,
+        ).pack(side=tk.LEFT)
 
-    def _build_tab_perfil(self):
-        f = self._tab_perfil
-        self.perfil_user_cb = ttk.Combobox(f, state="readonly", width=32)
+    def _build_page_profile(self):
+        f = self._page("profile")
+        self._section_title(f, "Perfil gastronómico", "Tus preferencias y datos básicos.")
+
+        top = ttk.Frame(f, style="Content.TFrame")
+        top.pack(fill=tk.X, pady=(0, 12))
+        ttk.Label(top, text="Usuario", style="Subtitle.TLabel").pack(side=tk.LEFT, padx=(0, 8))
+        self.perfil_user_cb = ttk.Combobox(top, state="readonly", width=36)
+        self.perfil_user_cb.pack(side=tk.LEFT)
         self.perfil_user_cb.bind("<<ComboboxSelected>>", lambda _e: self._load_perfil_user())
-        self._form_row(f, 0, "Usuario", self.perfil_user_cb)
-
-        ttk.Button(f, text="Repetir onboarding", command=lambda: self.notebook.select(self._tab_onb)).grid(
-            row=1, column=1, sticky=tk.W, pady=8
+        ttk.Button(top, text="Repetir onboarding", style="Secondary.TButton", command=lambda: self._nav("onboarding")).pack(
+            side=tk.LEFT, padx=12
         )
 
-        cols = ("preferencia", "score")
-        self.perfil_tree = ttk.Treeview(f, columns=cols, show="headings", height=16)
-        self.perfil_tree.heading("preferencia", text="Preferencia")
-        self.perfil_tree.heading("score", text="Score")
-        self.perfil_tree.column("preferencia", width=220)
-        self.perfil_tree.column("score", width=80)
-        self.perfil_tree.grid(row=2, column=0, columnspan=2, sticky=tk.NSEW, padx=12, pady=8)
-        f.rowconfigure(2, weight=1)
-        f.columnconfigure(1, weight=1)
+        body = ttk.Frame(f, style="Content.TFrame")
+        body.pack(fill=tk.BOTH, expand=True)
+        body.columnconfigure(0, weight=1)
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(0, weight=1)
 
+        pref_card = tk.Frame(
+            body,
+            bg=styles.COLORS["surface2"],
+            highlightbackground=styles.COLORS["card_border"],
+            highlightthickness=1,
+            padx=16,
+            pady=12,
+        )
+        pref_card.grid(row=0, column=0, sticky=tk.NSEW, padx=(0, 8))
+        tk.Label(pref_card, text="Preferencias activas", font=styles.FONTS["subtitle"], bg=styles.COLORS["surface2"], fg=styles.COLORS["text"]).pack(
+            anchor=tk.W, pady=(0, 8)
+        )
+        cols = ("preferencia", "score")
+        self.perfil_tree = ttk.Treeview(pref_card, columns=cols, show="headings", height=14)
+        self.perfil_tree.heading("preferencia", text="Preferencia")
+        self.perfil_tree.heading("score", text="Intensidad")
+        self.perfil_tree.column("preferencia", width=200)
+        self.perfil_tree.column("score", width=80)
+        self.perfil_tree.pack(fill=tk.BOTH, expand=True)
+
+        edit_card = tk.Frame(
+            body,
+            bg=styles.COLORS["surface2"],
+            highlightbackground=styles.COLORS["card_border"],
+            highlightthickness=1,
+            padx=16,
+            pady=12,
+        )
+        edit_card.grid(row=0, column=1, sticky=tk.NSEW, padx=(8, 0))
+        tk.Label(edit_card, text="Datos básicos", font=styles.FONTS["subtitle"], bg=styles.COLORS["surface2"], fg=styles.COLORS["text"]).pack(
+            anchor=tk.W, pady=(0, 12)
+        )
         self.edit_nombre = tk.StringVar()
         self.edit_presupuesto = tk.StringVar()
         self.edit_zona = tk.StringVar()
-        self._form_row(f, 3, "Nombre", ttk.Entry(f, textvariable=self.edit_nombre, width=30))
-        self.edit_zona_cb = ttk.Combobox(f, textvariable=self.edit_zona, state="readonly", width=28)
-        self._form_row(f, 4, "Zona", self.edit_zona_cb)
-        self._form_row(f, 5, "Presupuesto", ttk.Entry(f, textvariable=self.edit_presupuesto, width=30))
-        ttk.Button(f, text="Actualizar datos basicos", command=self._on_update_basic).grid(
-            row=6, column=1, sticky=tk.W, pady=12
+        for label, var in (("Nombre", self.edit_nombre), ("Presupuesto", self.edit_presupuesto)):
+            row = tk.Frame(edit_card, bg=styles.COLORS["surface2"])
+            row.pack(fill=tk.X, pady=6)
+            tk.Label(row, text=label, font=styles.FONTS["body"], bg=styles.COLORS["surface2"], width=12, anchor=tk.W).pack(side=tk.LEFT)
+            ttk.Entry(row, textvariable=var, width=28).pack(side=tk.LEFT)
+        row = tk.Frame(edit_card, bg=styles.COLORS["surface2"])
+        row.pack(fill=tk.X, pady=6)
+        tk.Label(row, text="Zona", font=styles.FONTS["body"], bg=styles.COLORS["surface2"], width=12, anchor=tk.W).pack(side=tk.LEFT)
+        self.edit_zona_cb = ttk.Combobox(row, textvariable=self.edit_zona, state="readonly", width=26)
+        self.edit_zona_cb.pack(side=tk.LEFT)
+        ttk.Button(edit_card, text="Actualizar", style="Accent.TButton", command=self._on_update_basic).pack(anchor=tk.W, pady=(16, 0))
+
+    def _build_page_rec(self):
+        f = self._page("rec")
+        self._section_title(f, "Recomendador IA", "Compatibilidad gastronómica personalizada para ti.")
+
+        toolbar = ttk.Frame(f, style="Content.TFrame")
+        toolbar.pack(fill=tk.X, pady=(0, 12))
+        ttk.Label(toolbar, text="Usuario", style="Subtitle.TLabel").pack(side=tk.LEFT, padx=(0, 8))
+        self.rec_user_cb = ttk.Combobox(toolbar, state="readonly", width=34)
+        self.rec_user_cb.pack(side=tk.LEFT)
+        ttk.Button(toolbar, text="✨ Recomendar ahora", style="Accent.TButton", command=self._on_recomendar).pack(
+            side=tk.LEFT, padx=16
         )
 
-    def _build_tab_rec(self):
-        f = self._tab_rec
-        self.rec_user_cb = ttk.Combobox(f, state="readonly", width=32)
-        self._form_row(f, 0, "Usuario", self.rec_user_cb)
-        ttk.Button(f, text="Recomendar con IA", style="Accent.TButton", command=self._on_recomendar).grid(
-            row=1, column=1, sticky=tk.W, pady=10
+        self.rec_scroll = ScrollableFrame(f)
+        self.rec_scroll.pack(fill=tk.BOTH, expand=True)
+        self.rec_empty = tk.Label(
+            self.rec_scroll.inner,
+            text="Selecciona un usuario y pulsa «Recomendar ahora»\npara ver tus restaurantes ideales.",
+            font=styles.FONTS["body"],
+            fg=styles.COLORS["muted"],
+            bg=styles.COLORS["bg"],
+            justify=tk.CENTER,
         )
-        cols = ("nombre", "score_total", "compatibilidad_pct", "similares", "rating", "precio", "zona")
-        self.rec_tree = ttk.Treeview(f, columns=cols, show="headings", height=10)
-        headings = {
-            "nombre": "Restaurante",
-            "score_total": "Score IA",
-            "compatibilidad_pct": "Compat %",
-            "similares": "Similares",
-            "rating": "Rating",
-            "precio": "Precio",
-            "zona": "Zona",
-        }
-        for c in cols:
-            self.rec_tree.heading(c, text=headings[c])
-            w = 150 if c == "nombre" else 95
-            self.rec_tree.column(c, width=w)
-        self.rec_tree.grid(row=2, column=0, columnspan=2, sticky=tk.NSEW, padx=12, pady=(8, 4))
-        self.rec_tree.bind("<<TreeviewSelect>>", self._on_rec_select)
-        self.rec_explain = tk.Text(f, height=8, wrap=tk.WORD, bg=styles.COLORS["surface2"], fg=styles.COLORS["text"])
-        self.rec_explain.grid(row=3, column=0, columnspan=2, sticky=tk.NSEW, padx=12, pady=(0, 8))
-        f.rowconfigure(2, weight=2)
-        f.rowconfigure(3, weight=1)
-        f.columnconfigure(1, weight=1)
+        self.rec_empty.pack(pady=80)
 
-    def _build_tab_hist(self):
-        f = self._tab_hist
-        self.hist_user_cb = ttk.Combobox(f, state="readonly", width=32)
-        self._form_row(f, 0, "Usuario", self.hist_user_cb)
-        ttk.Button(f, text="Cargar historial", command=self._on_historial).grid(row=1, column=1, sticky=tk.W, pady=10)
+    def _build_page_graph(self):
+        f = self._page("graph")
+        self._section_title(f, "Mapa de afinidades", "Visualiza conexiones entre tu perfil, preferencias y restaurantes.")
+        graph_card = tk.Frame(
+            f,
+            bg=styles.COLORS["graph_bg"],
+            highlightbackground=styles.COLORS["card_border"],
+            highlightthickness=1,
+        )
+        graph_card.pack(fill=tk.BOTH, expand=True)
+        self.graph_panel = GraphPanel(graph_card)
+        self.graph_panel.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+
+    def _build_page_settings(self):
+        f = self._page("settings")
+        self._section_title(f, "Configuración", "Catálogo, historial y preferencias del sistema.")
+
+        sett = tk.Frame(
+            f,
+            bg=styles.COLORS["surface2"],
+            highlightbackground=styles.COLORS["card_border"],
+            highlightthickness=1,
+            padx=20,
+            pady=16,
+        )
+        sett.pack(fill=tk.X, pady=(0, 16))
+        tk.Label(sett, text="Catálogo de restaurantes", font=styles.FONTS["subtitle"], bg=styles.COLORS["surface2"]).pack(anchor=tk.W)
+        tk.Label(
+            sett,
+            text="Importa más de 210 restaurantes reales de Ciudad de Guatemala (MERGE, no borra datos).",
+            font=styles.FONTS["small"],
+            fg=styles.COLORS["muted"],
+            bg=styles.COLORS["surface2"],
+            wraplength=600,
+            justify=tk.LEFT,
+        ).pack(anchor=tk.W, pady=(6, 12))
+        ttk.Button(sett, text="Importar catálogo", style="Accent.TButton", command=self._on_import_guatemala).pack(anchor=tk.W)
+
+        hist_box = ttk.Frame(f, style="Content.TFrame")
+        hist_box.pack(fill=tk.BOTH, expand=True)
+        row = ttk.Frame(hist_box, style="Content.TFrame")
+        row.pack(fill=tk.X, pady=(0, 8))
+        ttk.Label(row, text="Historial de visitas", style="Subtitle.TLabel").pack(side=tk.LEFT, padx=(0, 8))
+        self.hist_user_cb = ttk.Combobox(row, state="readonly", width=34)
+        self.hist_user_cb.pack(side=tk.LEFT)
+        ttk.Button(row, text="Cargar", style="Secondary.TButton", command=self._on_historial).pack(side=tk.LEFT, padx=12)
+
         cols = ("restaurante", "fecha", "nota", "rating", "precio", "zona", "cocinas")
-        self.hist_tree = ttk.Treeview(f, columns=cols, show="headings", height=14)
-        for c, t in zip(
-            cols,
-            ("Restaurante", "Fecha", "Nota", "Rating", "Precio", "Zona", "Cocinas"),
-        ):
+        self.hist_tree = ttk.Treeview(hist_box, columns=cols, show="headings", height=12)
+        for c, t in zip(cols, ("Restaurante", "Fecha", "Nota", "Rating", "Precio", "Zona", "Cocinas")):
             self.hist_tree.heading(c, text=t)
             self.hist_tree.column(c, width=110)
-        self.hist_tree.grid(row=2, column=0, columnspan=2, sticky=tk.NSEW, padx=12, pady=8)
-        f.rowconfigure(2, weight=1)
-        f.columnconfigure(1, weight=1)
+        self.hist_tree.pack(fill=tk.BOTH, expand=True)
 
-    def _form_row(self, parent, row, label, widget):
-        ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, padx=12, pady=6)
-        widget.grid(row=row, column=1, sticky=tk.W, pady=6)
+    def _nav(self, page: str):
+        self.sidebar.set_active(page)
+
+    def _update_header_user(self):
+        uid = self._current_user_id
+        if not uid:
+            self.header_user_var.set("Invitado")
+            self.header_greeting_var.set("Bienvenido")
+            return
+        name = uid
+        for u in self._usuarios:
+            if u["id"] == uid:
+                name = u.get("nombre") or uid
+                break
+        self.header_user_var.set("%s · %s" % (name, uid))
+        self.header_greeting_var.set("Hola, %s 👋" % name.split()[0] if name else "Hola")
 
     def _set_status(self, msg: str):
         self.status_var.set(msg)
@@ -251,15 +455,15 @@ class RestaurantApp(tk.Tk):
             self.graph_panel.render(grafo)
 
         def err(exc):
-            messagebox.showerror("Conexion", f"No se pudo conectar a Neo4j:\n{exc}")
+            messagebox.showerror("Conexión", "No se pudo conectar a Neo4j:\n%s" % exc)
             self.destroy()
 
-        self._run_async(work, on_ok=ok, on_err=err, busy_msg="Conectando Neo4j y catalogo...")
+        self._run_async(work, on_ok=ok, on_err=err, busy_msg="Conectando con Neo4j...")
 
     def _refresh_reference_data(self):
         self.onb_zona_cb["values"] = self._zonas
         self.edit_zona_cb["values"] = self._zonas
-        labels = [f"{u['id']} - {u['nombre']}" for u in self._usuarios]
+        labels = ["%s — %s" % (u["id"], u["nombre"]) for u in self._usuarios]
         for cb in (self.perfil_user_cb, self.rec_user_cb, self.hist_user_cb):
             cb["values"] = labels
 
@@ -279,7 +483,7 @@ class RestaurantApp(tk.Tk):
             return obtener_datos_grafo(focus_user_id=uid)
 
         def ok(grafo):
-            highlight = [f"User:{uid}"] if uid else None
+            highlight = ["User:%s" % uid] if uid else None
             self.graph_panel.render(grafo, highlight_nodes=highlight, focus_user_id=uid)
 
         self._run_async(work, on_ok=ok, busy_msg="Actualizando grafo...")
@@ -297,16 +501,21 @@ class RestaurantApp(tk.Tk):
                         for cb in (self.perfil_user_cb, self.rec_user_cb, self.hist_user_cb):
                             cb.current(i)
                         break
+            self._current_user_id = select_id
+            self._update_header_user()
             self._refresh_graph(select_id)
 
         self._run_async(work, on_ok=ok, busy_msg="Recargando usuarios...")
 
     def _on_wizard_step(self):
-        self.onb_presupuesto.set(str(self.wizard.get_presupuesto_sugerido()))
+        wizard = getattr(self, "wizard", None)
+        if wizard is None:
+            return
+        self.onb_presupuesto.set(str(wizard.get_presupuesto_sugerido()))
 
     def _on_wizard_complete(self):
         self.onb_presupuesto.set(str(self.wizard.get_presupuesto_sugerido()))
-        if messagebox.askyesno("Onboarding", "Perfil listo. Desea guardar el usuario ahora?"):
+        if messagebox.askyesno("Perfil listo", "¿Guardar tu perfil gastronómico ahora?"):
             self._on_save_onboarding()
 
     def _assign_next_user_id(self):
@@ -316,11 +525,11 @@ class RestaurantApp(tk.Tk):
         def ok(uid):
             self.onb_id.set(uid)
 
-        self._run_async(work, on_ok=ok, busy_msg="Generando ID de usuario...")
+        self._run_async(work, on_ok=ok, busy_msg="Generando ID...")
 
     def _on_import_guatemala(self):
         if self._catalog_imported:
-            messagebox.showinfo("Importacion", "El catalogo Guatemala ya fue importado en esta sesion.")
+            messagebox.showinfo("Catálogo", "El catálogo ya fue importado en esta sesión.")
             return
 
         def work():
@@ -330,49 +539,46 @@ class RestaurantApp(tk.Tk):
 
         def ok(count):
             self._catalog_imported = True
-            self.btn_import_gt.state(["disabled"])
-            messagebox.showinfo("Importacion", "Importados %d restaurantes (MERGE)." % count)
+            if hasattr(self, "btn_import_gt"):
+                self.btn_import_gt.state(["disabled"])
+            messagebox.showinfo("Catálogo", "Importados %d restaurantes." % count)
             self._zonas = obtener_zonas()
             self._refresh_reference_data()
             self._refresh_graph(self._current_user_id)
 
-        self._run_async(work, on_ok=ok, busy_msg="Importando catalogo Guatemala...")
+        self._run_async(work, on_ok=ok, busy_msg="Importando catálogo...")
 
-    def _on_rec_select(self, _event=None):
-        sel = self.rec_tree.selection()
-        if not sel:
+    def _render_rec_cards(self, rows: list[dict]):
+        self.rec_scroll.clear()
+        if not rows:
+            lbl = tk.Label(
+                self.rec_scroll.inner,
+                text="Sin recomendaciones para este usuario.\nPrueba completar el onboarding o ampliar presupuesto.",
+                font=styles.FONTS["body"],
+                fg=styles.COLORS["muted"],
+                bg=styles.COLORS["bg"],
+                justify=tk.CENTER,
+            )
+            lbl.pack(pady=80)
             return
-        idx = self.rec_tree.index(sel[0])
-        if idx < 0 or idx >= len(self._rec_rows):
-            return
-        row = self._rec_rows[idx]
-        lines = row.get("explicacion") or []
-        coincidencias = row.get("coincidencias") or []
-        if lines:
-            text = lines[0] + "\n"
-            text += "\n".join("- " + line for line in lines[1:])
-        else:
-            text = ""
-        if coincidencias:
-            labels = [PREF_LABELS_ES.get(p, p.replace("_", " ")) for p in coincidencias[:6]]
-            text += "\n\nPreferencias coincidentes: " + ", ".join(labels)
-        self.rec_explain.delete("1.0", tk.END)
-        self.rec_explain.insert(tk.END, text or "Sin explicacion disponible.")
+        for r in rows:
+            card = RestaurantCard(self.rec_scroll.inner, r, pref_labels=PREF_LABELS_ES)
+            card.pack(fill=tk.X, pady=8, padx=4)
 
     def _on_save_onboarding(self):
         uid = self.onb_id.get().strip() or generar_siguiente_user_id()
         nombre = self.onb_nombre.get().strip()
         zona = self.onb_zona.get().strip()
         if not uid or not nombre or not zona:
-            messagebox.showwarning("Validacion", "Complete ID, nombre y zona.")
+            messagebox.showwarning("Validación", "Completa nombre y zona.")
             return
         if any(s is None for s in self.wizard._selections):
-            messagebox.showwarning("Onboarding", "Complete los 7 pasos del cuestionario.")
+            messagebox.showwarning("Onboarding", "Completa los 7 pasos del cuestionario.")
             return
         try:
             presupuesto = self._parse_presupuesto(self.onb_presupuesto.get())
         except ValueError as exc:
-            messagebox.showwarning("Validacion", str(exc))
+            messagebox.showwarning("Validación", str(exc))
             return
         profile = self.wizard.get_final_profile()
 
@@ -384,10 +590,11 @@ class RestaurantApp(tk.Tk):
 
         def ok(new_id):
             self._current_user_id = new_id
-            messagebox.showinfo("Exito", f"Perfil gastronomico guardado para {new_id}.")
+            self._update_header_user()
+            messagebox.showinfo("¡Listo!", "Perfil guardado para %s." % new_id)
             self._reload_users(select_id=new_id)
 
-        self._run_async(work, on_ok=ok, busy_msg="Guardando usuario y perfil...")
+        self._run_async(work, on_ok=ok, busy_msg="Guardando perfil...")
 
     def _current_user_id_from_cb(self, combobox: ttk.Combobox) -> str | None:
         idx = combobox.current()
@@ -400,10 +607,9 @@ class RestaurantApp(tk.Tk):
         if not uid:
             return
         self._current_user_id = uid
+        self._update_header_user()
 
         def work():
-            from recommendation import obtener_usuario_detalle
-
             detalle = obtener_usuario_detalle(uid)
             perfil = obtener_perfil_gastronomico(uid)
             return detalle, perfil
@@ -425,24 +631,24 @@ class RestaurantApp(tk.Tk):
             self.onb_presupuesto.set(str(detalle.get("presupuesto") or ""))
             self.onb_zona.set(detalle.get("zona") or "")
             self.wizard.load_profile(perfil)
-            self.graph_panel.highlight_nodes([f"User:{uid}"])
+            self.graph_panel.highlight_nodes(["User:%s" % uid])
 
         self._run_async(work, on_ok=ok, busy_msg="Cargando perfil...")
 
     def _on_update_basic(self):
         uid = self._current_user_id_from_cb(self.perfil_user_cb)
         if not uid:
-            messagebox.showwarning("Perfil", "Seleccione un usuario.")
+            messagebox.showwarning("Perfil", "Selecciona un usuario.")
             return
         nombre = self.edit_nombre.get().strip()
         zona = self.edit_zona.get().strip()
         if not nombre or not zona:
-            messagebox.showwarning("Validacion", "Nombre y zona son obligatorios.")
+            messagebox.showwarning("Validación", "Nombre y zona son obligatorios.")
             return
         try:
             presupuesto = self._parse_presupuesto(self.edit_presupuesto.get())
         except ValueError as exc:
-            messagebox.showwarning("Validacion", str(exc))
+            messagebox.showwarning("Validación", str(exc))
             return
 
         def work():
@@ -455,55 +661,36 @@ class RestaurantApp(tk.Tk):
             return uid
 
         def ok(updated_id):
-            messagebox.showinfo("Exito", "Datos actualizados.")
+            messagebox.showinfo("Actualizado", "Datos guardados correctamente.")
             self._reload_users(select_id=updated_id)
 
-        self._run_async(work, on_ok=ok, busy_msg="Actualizando usuario...")
+        self._run_async(work, on_ok=ok, busy_msg="Actualizando...")
 
     def _on_recomendar(self):
         uid = self._current_user_id_from_cb(self.rec_user_cb)
         if not uid:
-            messagebox.showwarning("Recomendador", "Seleccione un usuario.")
+            messagebox.showwarning("Recomendador", "Selecciona un usuario.")
             return
         self._current_user_id = uid
+        self._update_header_user()
 
         def work():
             return recomendar_restaurantes_inteligente(uid)
 
         def ok(rows):
             self._rec_rows = rows or []
-            for item in self.rec_tree.get_children():
-                self.rec_tree.delete(item)
-            for r in rows:
-                self.rec_tree.insert(
-                    "",
-                    tk.END,
-                    values=(
-                        r.get("nombre"),
-                        r.get("score_total"),
-                        r.get("compatibilidad_pct", r.get("match_pref")),
-                        r.get("similares", r.get("usuarios_similares")),
-                        r.get("rating"),
-                        r.get("precio"),
-                        r.get("zona") or "",
-                    ),
-                )
-            self.rec_explain.delete("1.0", tk.END)
-            children = self.rec_tree.get_children()
-            if children:
-                self.rec_tree.selection_set(children[0])
-                self.rec_tree.focus(children[0])
-                self._on_rec_select()
-            if not rows:
-                messagebox.showinfo("Recomendador", "Sin recomendaciones para este usuario.")
+            self._render_rec_cards(self._rec_rows)
+            self._refresh_graph(uid)
 
-        self._run_async(work, on_ok=ok, busy_msg="Calculando recomendaciones IA...")
+        self._run_async(work, on_ok=ok, busy_msg="Calculando compatibilidad...")
 
     def _on_historial(self):
         uid = self._current_user_id_from_cb(self.hist_user_cb)
         if not uid:
-            messagebox.showwarning("Historial", "Seleccione un usuario.")
+            messagebox.showwarning("Historial", "Selecciona un usuario.")
             return
+        self._current_user_id = uid
+        self._update_header_user()
 
         def work():
             return obtener_historial_usuario(uid)
