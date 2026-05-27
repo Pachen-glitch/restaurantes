@@ -180,6 +180,101 @@ def _similar_users_visits(usuario_id: str) -> dict[str, int]:
         return {r["restaurante_id"]: int(r["similares"]) for r in session.run(query, usuario_id=usuario_id)}
 
 
+
+
+PREF_LABELS_ES = {
+    "gourmet": "experiencia gourmet",
+    "premium": "nivel premium",
+    "casual": "ambiente casual",
+    "romantic": "ideal para pareja",
+    "family_friendly": "apto para familia",
+    "street_food": "sabor callejero",
+    "pref_japonesa": "cocina japonesa",
+    "pref_italiana": "cocina italiana",
+    "pref_guatemalteca": "cocina guatemalteca",
+    "sabor_umami": "perfil umami",
+    "sabor_picante": "notas picantes",
+    "tranquil": "ambiente tranquilo",
+    "trendy": "lugar trendy",
+    "brunch": "estilo brunch",
+    "exclusive": "experiencia exclusiva",
+    "comfort_food": "comida reconfortante",
+    "slow_food": "ritmo slow food",
+    "explorador": "espiritu explorador",
+    "contundente": "platos contundentes",
+    "aesthetic": "presentacion aesthetic",
+    "nightlife": "vida nocturna",
+    "elegant": "elegancia",
+    "smoky": "notas ahumadas",
+    "saludable": "opciones saludables",
+    "business_dining": "salidas de trabajo",
+    "pref_coreana": "cocina coreana",
+    "pref_mediterranea": "cocina mediterranea",
+    "fast_service": "servicio rapido",
+    "home_dining": "comer en casa",
+    "lively": "ambiente animado",
+    "intimate": "ambiente intimo",
+}
+
+
+def generar_explicacion(
+    restaurant_nombre: str,
+    user_prefs: dict[str, float],
+    rest_prefs: dict[str, float],
+    *,
+    misma_zona: bool = False,
+    explorador_score: float = 0.0,
+) -> list[str]:
+    """Genera bullets en espanol tipo 'X coincide contigo porque...'."""
+    bullets: list[str] = []
+    coincidencias: list[tuple[str, float]] = []
+    for pref, u_score in user_prefs.items():
+        w = rest_prefs.get(pref)
+        if w is None or w < 0.45 or u_score < 4.0:
+            continue
+        coincidencias.append((pref, u_score * w))
+    coincidencias.sort(key=lambda x: -x[1])
+
+    for pref, _ in coincidencias[:4]:
+        label = PREF_LABELS_ES.get(pref, pref.replace("_", " "))
+        bullets.append("disfrutas %s" % label if pref.startswith(("sabor_", "pref_")) else "valoras %s" % label)
+
+    if rest_prefs.get("pref_japonesa", 0) >= 0.7 and user_prefs.get("pref_japonesa", 0) >= 6:
+        bullets.append("tienes alta afinidad con comida japonesa")
+    if rest_prefs.get("pref_italiana", 0) >= 0.7 and user_prefs.get("pref_italiana", 0) >= 6:
+        bullets.append("te atrae la cocina italiana")
+    if rest_prefs.get("premium", 0) >= 0.7 and user_prefs.get("premium", 0) >= 5:
+        bullets.append("buscas experiencias premium")
+    if rest_prefs.get("tranquil", 0) >= 0.7 and user_prefs.get("tranquil", 0) >= 5:
+        bullets.append("prefieres ambientes tranquilos")
+    if explorador_score >= 6 and rest_prefs.get("trendy", 0) >= 0.6:
+        bullets.append("te gusta explorar restaurantes nuevos")
+
+    if misma_zona:
+        bullets.append("esta en tu zona habitual")
+
+    seen: set[str] = set()
+    unique: list[str] = []
+    for b in bullets:
+        if b not in seen:
+            seen.add(b)
+            unique.append(b)
+
+    if not unique:
+        unique.append("tu perfil gastronomico encaja con el estilo de este lugar")
+
+    return ["%s coincide contigo porque:" % restaurant_nombre] + unique[:5]
+
+
+def _coincidencias_prefs(user_prefs: dict[str, float], rest_prefs: dict[str, float]) -> list[str]:
+    out = []
+    for pref, u_score in user_prefs.items():
+        w = rest_prefs.get(pref)
+        if w is not None and w >= 0.5 and u_score >= 4.0:
+            out.append(pref)
+    out.sort(key=lambda p: -(user_prefs.get(p, 0) * rest_prefs.get(p, 0)))
+    return out[:8]
+
 def recomendar_restaurantes_inteligente(usuario_id: str) -> list[dict]:
     ensure_preference_catalog()
     user_prefs = obtener_preferencias_usuario(usuario_id)
@@ -204,7 +299,7 @@ def recomendar_restaurantes_inteligente(usuario_id: str) -> list[dict]:
         with get_session() as session:
             candidatos = [dict(r) for r in session.run(query, usuario_id=usuario_id)]
     except Neo4jError as exc:
-        raise RuntimeError(f"Error al recomendar: {exc}") from exc
+        raise RuntimeError("Error al recomendar: %s" % exc) from exc
 
     max_sim = max(similares_map.values(), default=1) or 1
     scored: list[dict] = []
@@ -220,8 +315,21 @@ def recomendar_restaurantes_inteligente(usuario_id: str) -> list[dict]:
         rating_pct = (rating / 5.0) * 100
         zone_pct = 100 if misma_zona else 0
         score_total = round(
-            0.45 * match_pct + 0.25 * sim_pct + 0.2 * rating_pct + 0.1 * zone_pct,
+            0.5 * match_pct + 0.2 * sim_pct + 0.18 * rating_pct + 0.12 * zone_pct,
             1,
+        )
+        compatibilidad_pct = round(min(100.0, max(0.0, match_pref * 100)), 1)
+        coincidencias = _coincidencias_prefs(user_prefs, rp)
+        explorador = max(
+            user_prefs.get("explorador", 0),
+            user_prefs.get("aventurero", 0),
+        )
+        explicacion = generar_explicacion(
+            row.get("nombre") or rid,
+            user_prefs,
+            rp,
+            misma_zona=bool(misma_zona),
+            explorador_score=explorador,
         )
         item = dict(row)
         item["cocinas"] = [c for c in (item.get("cocinas") or []) if c]
@@ -229,18 +337,23 @@ def recomendar_restaurantes_inteligente(usuario_id: str) -> list[dict]:
         item["usuarios_similares"] = similares
         item["similares"] = similares
         item["score_total"] = min(100.0, max(0.0, score_total))
+        item["compatibilidad_pct"] = compatibilidad_pct
+        item["explicacion"] = explicacion
+        item["coincidencias"] = coincidencias
         scored.append(item)
 
     scored.sort(
         key=lambda x: (
             x.get("score_total", 0),
+            x.get("compatibilidad_pct", 0),
             x.get("usuarios_similares", 0),
             x.get("misma_zona", 0),
             x.get("rating", 0),
         ),
         reverse=True,
     )
-    return scored[:5]
+    return scored[:8]
+
 
 
 def recomendar_restaurantes(usuario_id):
@@ -253,38 +366,65 @@ def _node_key(label, props):
     return f"{label}:{props.get('nombre', '')}"
 
 
-def obtener_datos_grafo():
+def obtener_datos_grafo(focus_user_id=None):
     nodes = {}
     edges = []
 
-    node_query = """
-    MATCH (n)
-    WHERE n:User OR n:Restaurant OR n:Cuisine OR n:Zone OR n:Preference
-    RETURN labels(n)[0] AS label, properties(n) AS props
-    """
-    rel_query = """
-    MATCH (a)-[r]->(b)
-    WHERE (a:User OR a:Restaurant OR a:Cuisine OR a:Zone OR a:Preference)
-      AND (b:User OR b:Restaurant OR b:Cuisine OR b:Zone OR b:Preference)
-    RETURN labels(a)[0] AS la, properties(a) AS pa,
-           labels(b)[0] AS lb, properties(b) AS pb,
-           type(r) AS rel, properties(r) AS rprops
-    """
+    if focus_user_id:
+        node_query = """
+        MATCH (u:User {id: $uid})
+        OPTIONAL MATCH (u)-[r]-(n)
+        WHERE n:Restaurant OR n:Cuisine OR n:Zone OR n:Preference
+        WITH u, collect(DISTINCT n) AS neigh
+        UNWIND neigh + [u] AS n
+        RETURN labels(n)[0] AS label, properties(n) AS props
+        """
+        rel_query = """
+        MATCH (u:User {id: $uid})
+        MATCH (a)-[r]->(b)
+        WHERE (a:User OR a:Restaurant OR a:Cuisine OR a:Zone OR a:Preference)
+          AND (b:User OR b:Restaurant OR b:Cuisine OR b:Zone OR b:Preference)
+          AND (a = u OR b = u)
+        RETURN labels(a)[0] AS la, properties(a) AS pa,
+               labels(b)[0] AS lb, properties(b) AS pb,
+               type(r) AS rel, properties(r) AS rprops
+        LIMIT 400
+        """
+        params = {"uid": focus_user_id}
+    else:
+        node_query = """
+        MATCH (n)
+        WHERE n:User OR n:Restaurant OR n:Cuisine OR n:Zone OR n:Preference
+        RETURN labels(n)[0] AS label, properties(n) AS props
+        LIMIT 120
+        """
+        rel_query = """
+        MATCH (a)-[r]->(b)
+        WHERE (a:User OR a:Restaurant OR a:Cuisine OR a:Zone OR a:Preference)
+          AND (b:User OR b:Restaurant OR b:Cuisine OR b:Zone OR b:Preference)
+        RETURN labels(a)[0] AS la, properties(a) AS pa,
+               labels(b)[0] AS lb, properties(b) AS pb,
+               type(r) AS rel, properties(r) AS rprops
+        LIMIT 250
+        """
+        params = {}
 
     with get_session() as session:
-        for rec in session.run(node_query):
+        for rec in session.run(node_query, **params):
             label = rec["label"]
             props = dict(rec["props"])
             nid = _node_key(label, props)
             name = props.get("nombre") or props.get("id") or nid
             nodes[nid] = {"id": nid, "label": label, "name": name}
 
-        for rec in session.run(rel_query):
+        for rec in session.run(rel_query, **params):
             la, pa = rec["la"], dict(rec["pa"])
             lb, pb = rec["lb"], dict(rec["pb"])
             rprops = dict(rec["rprops"] or {})
             source = _node_key(la, pa)
             target = _node_key(lb, pb)
+            if source == target:
+                continue
             if source not in nodes:
                 nodes[source] = {
                     "id": source,
@@ -305,6 +445,7 @@ def obtener_datos_grafo():
             edges.append(edge)
 
     return {"nodes": list(nodes.values()), "edges": edges}
+
 
 
 def obtener_historial_usuario(usuario_id):

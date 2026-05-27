@@ -22,6 +22,8 @@ COLORS = {
     "cuisine": "#fb923c",
     "zone": "#f87171",
     "preference": "#c084fc",
+    "card_hover": "#3b3f55",
+    "card_border": "#585b70",
 }
 
 FONTS = {
@@ -30,6 +32,7 @@ FONTS = {
     "body": ("Segoe UI", 10),
     "small": ("Segoe UI", 9),
     "card": ("Segoe UI", 11),
+    "card_title": ("Segoe UI", 11, "bold"),
 }
 
 
@@ -50,7 +53,11 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
     style.configure(
         "TButton", background=c["surface2"], foreground=c["text"], padding=(14, 8), font=FONTS["body"]
     )
-    style.map("TButton", background=[("active", c["surface3"]), ("pressed", c["accent"])])
+    style.map(
+        "TButton",
+        background=[("active", c["card_hover"]), ("pressed", c["accent"])],
+        relief=[("pressed", "sunken"), ("!pressed", "flat")],
+    )
 
     style.configure(
         "Accent.TButton", background=c["accent"], foreground=c["bg"], padding=(16, 10), font=("Segoe UI", 10, "bold")
@@ -60,8 +67,29 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
     style.configure(
         "Option.TButton", background=c["surface2"], foreground=c["text"], padding=(12, 10), font=FONTS["card"]
     )
-    style.map("Option.TButton", background=[("active", c["accent"])])
+    style.map("Option.TButton", background=[("active", c["card_hover"])])
     style.configure("Selected.Option.TButton", background=c["accent"], foreground=c["bg"])
+
+    style.configure(
+        "OptionCard.TButton",
+        background=c["surface2"],
+        foreground=c["text"],
+        padding=(16, 14),
+        font=FONTS["card_title"],
+        borderwidth=1,
+    )
+    style.map(
+        "OptionCard.TButton",
+        background=[("active", c["card_hover"]), ("pressed", c["surface3"])],
+        relief=[("active", "raised")],
+    )
+    style.configure(
+        "Selected.OptionCard.TButton",
+        background=c["accent"],
+        foreground=c["bg"],
+        borderwidth=2,
+    )
+    style.map("Selected.OptionCard.TButton", background=[("active", c["accent2"])])
 
     style.configure("TEntry", fieldbackground=c["surface2"], foreground=c["text"], insertcolor=c["text"])
     style.configure("TCombobox", fieldbackground=c["surface2"], foreground=c["text"], background=c["surface2"])
@@ -72,7 +100,7 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
         "Treeview", background=c["surface2"], foreground=c["text"], fieldbackground=c["surface2"], rowheight=28
     )
     style.configure("Treeview.Heading", background=c["surface3"], foreground=c["text"], font=("Segoe UI", 9, "bold"))
-    style.configure("Horizontal.TProgressbar", troughcolor=c["surface2"], background=c["accent"], thickness=8)
+    style.configure("Horizontal.TProgressbar", troughcolor=c["surface2"], background=c["accent"], thickness=10)
     style.configure("Horizontal.TPanedwindow", background=c["surface"])
     style.configure("Vertical.TScrollbar", background=c["surface2"])
     root.configure(bg=c["surface"])

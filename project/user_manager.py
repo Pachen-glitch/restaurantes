@@ -38,46 +38,67 @@ PREFERENCE_CATALOG = [
     "spicy",
     "balanced_flavor",
     "intense_flavor",
+    "comfort_food",
+    "trendy",
+    "aesthetic",
+    "romantic",
+    "family_friendly",
+    "nightlife",
+    "brunch",
+    "exclusive",
+    "fast_service",
+    "tranquil",
+    "elegant",
+    "smoky",
+    "home_dining",
+    "lively",
+    "intimate",
+    "outdoor",
+    "rooftop",
+    "wine_focus",
+    "craft_beer",
+    "dessert_focus",
+    "business_dining",
+    "pref_coreana",
+    "pref_mediterranea",
 ]
 
-RESTAURANT_PREFERENCE_MAP = {
-    "r1": {
-        "gourmet": 0.9,
-        "aventurero": 0.7,
-        "explorador": 0.6,
-        "indulgente": 0.8,
-        "sabor_umami": 0.95,
-        "pref_japonesa": 1.0,
-        "slow_food": 0.75,
-        "social_pareja": 0.5,
-    },
-    "r2": {
-        "gourmet": 0.65,
-        "tradicional": 0.55,
-        "equilibrado": 0.7,
-        "pref_italiana": 1.0,
-        "slow_food": 0.6,
-        "social_pareja": 0.6,
-        "social_grupo": 0.5,
-    },
-    "r3": {
-        "casual": 0.8,
-        "tradicional": 0.85,
-        "ahorrador": 0.75,
-        "contundente": 0.9,
-        "pref_guatemalteca": 1.0,
-        "social_familia": 0.7,
-        "comida_rapida": 0.4,
-    },
-    "r4": {
-        "equilibrado": 0.8,
-        "gourmet": 0.55,
-        "pref_italiana": 1.0,
-        "social_pareja": 0.75,
-        "slow_food": 0.5,
-        "tradicional": 0.45,
-    },
+PRESUPUESTO_RANGOS = {
+    "q50_150": 120,
+    "q150_300": 225,
+    "q300_600": 450,
+    "q600_1000": 800,
+    "q1000_2000": 1500,
+    "mas_2000": 2500,
+    "en_casa": 100,
 }
+
+
+def presupuesto_desde_rango(rango_key: str) -> int:
+    return int(PRESUPUESTO_RANGOS.get(rango_key, 150))
+
+
+def _catalog_from_restaurants() -> set[str]:
+    try:
+        from restaurants_guatemala import RESTAURANTS
+    except ImportError:
+        return set()
+    names: set[str] = set(PREFERENCE_CATALOG)
+    for r in RESTAURANTS:
+        names.update((r.get("prefs") or {}).keys())
+    return names
+
+
+def generar_siguiente_user_id() -> str:
+    query = "MATCH (u:User) WHERE u.id STARTS WITH 'u' RETURN u.id AS id"
+    with get_session() as session:
+        ids = [row["id"] for row in session.run(query)]
+    max_n = 0
+    for uid in ids:
+        suffix = uid[1:] if uid.startswith("u") else ""
+        if suffix.isdigit():
+            max_n = max(max_n, int(suffix))
+    return "u%d" % (max_n + 1)
 
 
 def _usuario_existe(usuario_id: str) -> bool:
@@ -87,29 +108,17 @@ def _usuario_existe(usuario_id: str) -> bool:
 
 
 def ensure_preference_catalog() -> None:
+    catalog = sorted(_catalog_from_restaurants())
     with get_session() as session:
         session.run(
             "UNWIND $names AS nombre MERGE (:Preference {nombre: nombre})",
-            names=PREFERENCE_CATALOG,
+            names=catalog,
         )
-        for rest_id, prefs in RESTAURANT_PREFERENCE_MAP.items():
-            for pref, weight in prefs.items():
-                session.run(
-                    """
-                    MATCH (r:Restaurant {id: $rest_id})
-                    MATCH (p:Preference {nombre: $pref})
-                    MERGE (r)-[m:MATCHES_PREFERENCE]->(p)
-                    SET m.weight = $weight
-                    """,
-                    rest_id=rest_id,
-                    pref=pref,
-                    weight=float(weight),
-                )
 
 
 def crear_usuario_base(user_id: str, nombre: str, presupuesto: int, zona: str) -> None:
     if _usuario_existe(user_id):
-        raise ValueError(f"El usuario '{user_id}' ya existe.")
+        raise ValueError("El usuario '%s' ya existe." % user_id)
     with get_session() as session:
         session.run(
             """
@@ -133,8 +142,9 @@ def crear_usuario_base(user_id: str, nombre: str, presupuesto: int, zona: str) -
 
 def guardar_perfil_gastronomico(user_id: str, profile_scores: dict[str, float]) -> None:
     if not _usuario_existe(user_id):
-        raise ValueError(f"El usuario '{user_id}' no existe.")
-    scores = {k: float(v) for k, v in (profile_scores or {}).items() if k in PREFERENCE_CATALOG}
+        raise ValueError("El usuario '%s' no existe." % user_id)
+    allowed = _catalog_from_restaurants()
+    scores = {k: float(v) for k, v in (profile_scores or {}).items() if k in allowed}
     with get_session() as session:
         for pref, score in scores.items():
             session.run(

@@ -11,27 +11,30 @@ import styles
 from graph_view import GraphPanel
 from onboarding import OnboardingWizard
 from recommendation import (
+    PREF_LABELS_ES,
     obtener_usuario_detalle,
     obtener_datos_grafo,
     obtener_historial_usuario,
     obtener_usuarios,
     obtener_zonas,
-    recomendar_restaurantes,
+    recomendar_restaurantes_inteligente,
     usuario_existe,
 )
 from user_manager import (
     actualizar_usuario,
     crear_usuario_base,
     ensure_preference_catalog,
+    generar_siguiente_user_id,
     guardar_perfil_gastronomico,
     obtener_perfil_gastronomico,
 )
+from restaurant_importer import import_guatemala_restaurants
 
 
 class RestaurantApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Restaurantes IA - Perfil Gastronomico")
+        self.title("Restaurantes IA - Guatemala City")
         self.minsize(1280, 720)
         self.geometry("1320x760")
 
@@ -40,6 +43,8 @@ class RestaurantApp(tk.Tk):
         self._zonas: list[str] = []
         self._usuarios: list[dict] = []
         self._current_user_id: str | None = None
+        self._catalog_imported = False
+        self._rec_rows: list[dict] = []
 
         self._build_layout()
         self._set_status("Iniciando...")
@@ -48,7 +53,12 @@ class RestaurantApp(tk.Tk):
     def _build_layout(self):
         header = ttk.Frame(self, padding=(12, 10))
         header.pack(fill=tk.X)
-        ttk.Label(header, text="Restaurantes IA - Perfil Gastronomico", style="Title.TLabel").pack(anchor=tk.W)
+        ttk.Label(header, text="Restaurantes IA", style="Title.TLabel").pack(anchor=tk.W)
+        ttk.Label(
+            header,
+            text="Perfil gastronomico, catalogo Guatemala (210+) y grafo Neo4j",
+            style="Muted.TLabel",
+        ).pack(anchor=tk.W, pady=(2, 0))
 
         paned = ttk.Panedwindow(self, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
@@ -93,17 +103,23 @@ class RestaurantApp(tk.Tk):
 
         form = ttk.Frame(f, padding=12)
         form.pack(fill=tk.X)
-        self._form_row(form, 0, "ID usuario", ttk.Entry(form, textvariable=self.onb_id, width=30))
+        ttk.Label(form, textvariable=self.onb_id, style="Subtitle.TLabel").grid(row=0, column=1, sticky=tk.W, pady=6); ttk.Label(form, text="ID usuario (auto)").grid(row=0, column=0, sticky=tk.W, padx=12, pady=6)
         self._form_row(form, 1, "Nombre", ttk.Entry(form, textvariable=self.onb_nombre, width=30))
         self._form_row(form, 2, "Presupuesto (Q)", ttk.Entry(form, textvariable=self.onb_presupuesto, width=30))
         self.onb_zona_cb = ttk.Combobox(form, textvariable=self.onb_zona, state="readonly", width=28)
         self._form_row(form, 3, "Zona", self.onb_zona_cb)
 
-        self.wizard = OnboardingWizard(f, on_step_change=self._on_wizard_step, padding=12)
+        self.wizard = OnboardingWizard(f, on_step_change=self._on_wizard_step, on_complete=self._on_wizard_complete, padding=12)
         self.wizard.pack(fill=tk.BOTH, expand=True)
 
         actions = ttk.Frame(f, padding=12)
         actions.pack(fill=tk.X)
+        self.btn_import_gt = ttk.Button(
+            actions,
+            text="Importar catalogo Guatemala (210+)",
+            command=self._on_import_guatemala,
+        )
+        self.btn_import_gt.pack(side=tk.LEFT, padx=(0, 8))
         ttk.Button(actions, text="Guardar perfil y usuario", style="Accent.TButton", command=self._on_save_onboarding).pack(
             side=tk.LEFT
         )
@@ -146,12 +162,12 @@ class RestaurantApp(tk.Tk):
         ttk.Button(f, text="Recomendar con IA", style="Accent.TButton", command=self._on_recomendar).grid(
             row=1, column=1, sticky=tk.W, pady=10
         )
-        cols = ("nombre", "score_total", "match_pref", "similares", "rating", "precio", "zona")
-        self.rec_tree = ttk.Treeview(f, columns=cols, show="headings", height=14)
+        cols = ("nombre", "score_total", "compatibilidad_pct", "similares", "rating", "precio", "zona")
+        self.rec_tree = ttk.Treeview(f, columns=cols, show="headings", height=10)
         headings = {
             "nombre": "Restaurante",
             "score_total": "Score IA",
-            "match_pref": "Match pref",
+            "compatibilidad_pct": "Compat %",
             "similares": "Similares",
             "rating": "Rating",
             "precio": "Precio",
@@ -161,8 +177,12 @@ class RestaurantApp(tk.Tk):
             self.rec_tree.heading(c, text=headings[c])
             w = 150 if c == "nombre" else 95
             self.rec_tree.column(c, width=w)
-        self.rec_tree.grid(row=2, column=0, columnspan=2, sticky=tk.NSEW, padx=12, pady=8)
-        f.rowconfigure(2, weight=1)
+        self.rec_tree.grid(row=2, column=0, columnspan=2, sticky=tk.NSEW, padx=12, pady=(8, 4))
+        self.rec_tree.bind("<<TreeviewSelect>>", self._on_rec_select)
+        self.rec_explain = tk.Text(f, height=8, wrap=tk.WORD, bg=styles.COLORS["surface2"], fg=styles.COLORS["text"])
+        self.rec_explain.grid(row=3, column=0, columnspan=2, sticky=tk.NSEW, padx=12, pady=(0, 8))
+        f.rowconfigure(2, weight=2)
+        f.rowconfigure(3, weight=1)
         f.columnconfigure(1, weight=1)
 
     def _build_tab_hist(self):
@@ -224,6 +244,7 @@ class RestaurantApp(tk.Tk):
 
         def ok(data):
             zonas, usuarios, grafo = data
+            self._assign_next_user_id()
             self._zonas = zonas
             self._usuarios = usuarios
             self._refresh_reference_data()
@@ -255,11 +276,11 @@ class RestaurantApp(tk.Tk):
         uid = highlight_user or self._current_user_id
 
         def work():
-            return obtener_datos_grafo()
+            return obtener_datos_grafo(focus_user_id=uid)
 
         def ok(grafo):
             highlight = [f"User:{uid}"] if uid else None
-            self.graph_panel.render(grafo, highlight_nodes=highlight)
+            self.graph_panel.render(grafo, highlight_nodes=highlight, focus_user_id=uid)
 
         self._run_async(work, on_ok=ok, busy_msg="Actualizando grafo...")
 
@@ -281,17 +302,72 @@ class RestaurantApp(tk.Tk):
         self._run_async(work, on_ok=ok, busy_msg="Recargando usuarios...")
 
     def _on_wizard_step(self):
-        pass
+        self.onb_presupuesto.set(str(self.wizard.get_presupuesto_sugerido()))
+
+    def _on_wizard_complete(self):
+        self.onb_presupuesto.set(str(self.wizard.get_presupuesto_sugerido()))
+        if messagebox.askyesno("Onboarding", "Perfil listo. Desea guardar el usuario ahora?"):
+            self._on_save_onboarding()
+
+    def _assign_next_user_id(self):
+        def work():
+            return generar_siguiente_user_id()
+
+        def ok(uid):
+            self.onb_id.set(uid)
+
+        self._run_async(work, on_ok=ok, busy_msg="Generando ID de usuario...")
+
+    def _on_import_guatemala(self):
+        if self._catalog_imported:
+            messagebox.showinfo("Importacion", "El catalogo Guatemala ya fue importado en esta sesion.")
+            return
+
+        def work():
+            count = import_guatemala_restaurants()
+            ensure_preference_catalog()
+            return count
+
+        def ok(count):
+            self._catalog_imported = True
+            self.btn_import_gt.state(["disabled"])
+            messagebox.showinfo("Importacion", "Importados %d restaurantes (MERGE)." % count)
+            self._zonas = obtener_zonas()
+            self._refresh_reference_data()
+            self._refresh_graph(self._current_user_id)
+
+        self._run_async(work, on_ok=ok, busy_msg="Importando catalogo Guatemala...")
+
+    def _on_rec_select(self, _event=None):
+        sel = self.rec_tree.selection()
+        if not sel:
+            return
+        idx = self.rec_tree.index(sel[0])
+        if idx < 0 or idx >= len(self._rec_rows):
+            return
+        row = self._rec_rows[idx]
+        lines = row.get("explicacion") or []
+        coincidencias = row.get("coincidencias") or []
+        if lines:
+            text = lines[0] + "\n"
+            text += "\n".join("- " + line for line in lines[1:])
+        else:
+            text = ""
+        if coincidencias:
+            labels = [PREF_LABELS_ES.get(p, p.replace("_", " ")) for p in coincidencias[:6]]
+            text += "\n\nPreferencias coincidentes: " + ", ".join(labels)
+        self.rec_explain.delete("1.0", tk.END)
+        self.rec_explain.insert(tk.END, text or "Sin explicacion disponible.")
 
     def _on_save_onboarding(self):
-        uid = self.onb_id.get().strip()
+        uid = self.onb_id.get().strip() or generar_siguiente_user_id()
         nombre = self.onb_nombre.get().strip()
         zona = self.onb_zona.get().strip()
         if not uid or not nombre or not zona:
             messagebox.showwarning("Validacion", "Complete ID, nombre y zona.")
             return
-        if self.wizard._selections[-1] is None:
-            messagebox.showwarning("Onboarding", "Complete el paso 6 del cuestionario.")
+        if any(s is None for s in self.wizard._selections):
+            messagebox.showwarning("Onboarding", "Complete los 7 pasos del cuestionario.")
             return
         try:
             presupuesto = self._parse_presupuesto(self.onb_presupuesto.get())
@@ -392,9 +468,10 @@ class RestaurantApp(tk.Tk):
         self._current_user_id = uid
 
         def work():
-            return recomendar_restaurantes(uid)
+            return recomendar_restaurantes_inteligente(uid)
 
         def ok(rows):
+            self._rec_rows = rows or []
             for item in self.rec_tree.get_children():
                 self.rec_tree.delete(item)
             for r in rows:
@@ -404,14 +481,19 @@ class RestaurantApp(tk.Tk):
                     values=(
                         r.get("nombre"),
                         r.get("score_total"),
-                        r.get("match_pref"),
+                        r.get("compatibilidad_pct", r.get("match_pref")),
                         r.get("similares", r.get("usuarios_similares")),
                         r.get("rating"),
                         r.get("precio"),
                         r.get("zona") or "",
                     ),
                 )
-            self._refresh_graph(uid)
+            self.rec_explain.delete("1.0", tk.END)
+            children = self.rec_tree.get_children()
+            if children:
+                self.rec_tree.selection_set(children[0])
+                self.rec_tree.focus(children[0])
+                self._on_rec_select()
             if not rows:
                 messagebox.showinfo("Recomendador", "Sin recomendaciones para este usuario.")
 

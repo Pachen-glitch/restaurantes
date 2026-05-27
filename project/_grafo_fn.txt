@@ -1,0 +1,79 @@
+def obtener_datos_grafo(focus_user_id=None):
+    nodes = {}
+    edges = []
+
+    if focus_user_id:
+        node_query = """
+        MATCH (u:User {id: $uid})
+        OPTIONAL MATCH (u)-[r]-(n)
+        WHERE n:Restaurant OR n:Cuisine OR n:Zone OR n:Preference
+        WITH u, collect(DISTINCT n) AS neigh
+        UNWIND neigh + [u] AS n
+        RETURN labels(n)[0] AS label, properties(n) AS props
+        """
+        rel_query = """
+        MATCH (u:User {id: $uid})
+        MATCH (a)-[r]->(b)
+        WHERE (a:User OR a:Restaurant OR a:Cuisine OR a:Zone OR a:Preference)
+          AND (b:User OR b:Restaurant OR b:Cuisine OR b:Zone OR b:Preference)
+          AND (a = u OR b = u)
+        RETURN labels(a)[0] AS la, properties(a) AS pa,
+               labels(b)[0] AS lb, properties(b) AS pb,
+               type(r) AS rel, properties(r) AS rprops
+        LIMIT 400
+        """
+        params = {"uid": focus_user_id}
+    else:
+        node_query = """
+        MATCH (n)
+        WHERE n:User OR n:Restaurant OR n:Cuisine OR n:Zone OR n:Preference
+        RETURN labels(n)[0] AS label, properties(n) AS props
+        LIMIT 120
+        """
+        rel_query = """
+        MATCH (a)-[r]->(b)
+        WHERE (a:User OR a:Restaurant OR a:Cuisine OR a:Zone OR a:Preference)
+          AND (b:User OR b:Restaurant OR b:Cuisine OR b:Zone OR b:Preference)
+        RETURN labels(a)[0] AS la, properties(a) AS pa,
+               labels(b)[0] AS lb, properties(b) AS pb,
+               type(r) AS rel, properties(r) AS rprops
+        LIMIT 250
+        """
+        params = {}
+
+    with get_session() as session:
+        for rec in session.run(node_query, **params):
+            label = rec["label"]
+            props = dict(rec["props"])
+            nid = _node_key(label, props)
+            name = props.get("nombre") or props.get("id") or nid
+            nodes[nid] = {"id": nid, "label": label, "name": name}
+
+        for rec in session.run(rel_query, **params):
+            la, pa = rec["la"], dict(rec["pa"])
+            lb, pb = rec["lb"], dict(rec["pb"])
+            rprops = dict(rec["rprops"] or {})
+            source = _node_key(la, pa)
+            target = _node_key(lb, pb)
+            if source == target:
+                continue
+            if source not in nodes:
+                nodes[source] = {
+                    "id": source,
+                    "label": la,
+                    "name": pa.get("nombre") or pa.get("id") or source,
+                }
+            if target not in nodes:
+                nodes[target] = {
+                    "id": target,
+                    "label": lb,
+                    "name": pb.get("nombre") or pb.get("id") or target,
+                }
+            edge = {"source": source, "target": target, "rel": rec["rel"]}
+            if rec["rel"] == "HAS_PREFERENCE" and "score" in rprops:
+                edge["score"] = rprops["score"]
+            if rec["rel"] == "MATCHES_PREFERENCE" and "weight" in rprops:
+                edge["weight"] = rprops["weight"]
+            edges.append(edge)
+
+    return {"nodes": list(nodes.values()), "edges": edges}

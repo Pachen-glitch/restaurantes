@@ -1,289 +1,119 @@
-"""Wizard de onboarding gastronomico."""
+"""Wizard de onboarding gastronomico (7 pasos, auto-avance)."""
 
 from __future__ import annotations
 
-import json
 import tkinter as tk
 from tkinter import ttk
 
 from styles import COLORS, FONTS
 
-_ONBOARDING_JSON = """
-[
-  {
-    "id": "estilo",
-    "title": "Estilo general",
-    "subtitle": "Que buscas normalmente al salir a comer?",
-    "options": [
-      {
-        "text": "Algo rapido",
-        "weights": {
-          "comida_rapida": 5,
-          "fast_food": 4,
-          "casual": 2
-        }
-      },
-      {
-        "text": "Una experiencia tranquila",
-        "weights": {
-          "slow_food": 5,
-          "casual": 4,
-          "gourmet": 2
-        }
-      },
-      {
-        "text": "Algo gourmet",
-        "weights": {
-          "gourmet": 5,
-          "premium": 4,
-          "indulgente": 3
-        }
-      },
-      {
-        "text": "Algo casual",
-        "weights": {
-          "casual": 5,
-          "equilibrado": 3,
-          "social_grupo": 2
-        }
-      },
-      {
-        "text": "Comida callejera",
-        "weights": {
-          "street_food": 5,
-          "contundente": 4,
-          "pref_guatemalteca": 2
-        }
-      }
-    ]
-  },
-  {
-    "id": "exploracion",
-    "title": "Exploracion",
-    "subtitle": "Que tanto te gusta probar cosas nuevas?",
-    "options": [
-      {
-        "text": "Nunca",
-        "weights": {
-          "rutinero": 5,
-          "tradicional": 4
-        }
-      },
-      {
-        "text": "A veces",
-        "weights": {
-          "equilibrado": 4,
-          "explorador": 2
-        }
-      },
-      {
-        "text": "Frecuentemente",
-        "weights": {
-          "explorador": 5,
-          "aventurero": 3
-        }
-      },
-      {
-        "text": "Siempre",
-        "weights": {
-          "explorador": 5,
-          "aventurero": 5,
-          "moderno": 3
-        }
-      }
-    ]
-  },
-  {
-    "id": "presupuesto",
-    "title": "Presupuesto emocional",
-    "subtitle": "Cuanto gastarias en una salida especial?",
-    "options": [
-      {
-        "text": "Q50",
-        "weights": {
-          "ahorrador": 5,
-          "casual": 3
-        }
-      },
-      {
-        "text": "Q100",
-        "weights": {
-          "equilibrado": 5,
-          "casual": 2
-        }
-      },
-      {
-        "text": "Q200+",
-        "weights": {
-          "premium": 5,
-          "gourmet": 4,
-          "indulgente": 3
-        }
-      },
-      {
-        "text": "Depende del lugar",
-        "weights": {
-          "equilibrado": 4,
-          "explorador": 3,
-          "indulgente": 2
-        }
-      }
-    ]
-  },
-  {
-    "id": "social",
-    "title": "Contexto social",
-    "subtitle": "Con quien sales normalmente?",
-    "options": [
-      {
-        "text": "Solo",
-        "weights": {
-          "social_solo": 5,
-          "comida_rapida": 2
-        }
-      },
-      {
-        "text": "Pareja",
-        "weights": {
-          "social_pareja": 5,
-          "gourmet": 2,
-          "slow_food": 2
-        }
-      },
-      {
-        "text": "Amigos",
-        "weights": {
-          "social_grupo": 5,
-          "casual": 3,
-          "aventurero": 2
-        }
-      },
-      {
-        "text": "Familia",
-        "weights": {
-          "social_familia": 5,
-          "tradicional": 3,
-          "contundente": 2
-        }
-      }
-    ]
-  },
-  {
-    "id": "sabores",
-    "title": "Sabores",
-    "subtitle": "Que tipo de sabores prefieres?",
-    "options": [
-      {
-        "text": "Suaves",
-        "weights": {
-          "sabor_fresco": 5,
-          "balanced_flavor": 4
-        }
-      },
-      {
-        "text": "Balanceados",
-        "weights": {
-          "equilibrado": 5,
-          "balanced_flavor": 4
-        }
-      },
-      {
-        "text": "Picantes",
-        "weights": {
-          "sabor_picante": 5,
-          "spicy": 5
-        }
-      },
-      {
-        "text": "Intensos",
-        "weights": {
-          "sabor_umami": 5,
-          "intense_flavor": 4,
-          "gourmet": 2
-        }
-      }
-    ]
-  },
-  {
-    "id": "comida",
-    "title": "Comida real",
-    "subtitle": "Que escogerias AHORA MISMO?",
-    "options": [
-      {
-        "text": "Sushi",
-        "weights": {
-          "pref_japonesa": 5,
-          "gourmet": 3,
-          "sabor_umami": 4
-        }
-      },
-      {
-        "text": "Hamburguesa artesanal",
-        "weights": {
-          "casual": 4,
-          "contundente": 3,
-          "moderno": 2
-        }
-      },
-      {
-        "text": "Pasta cremosa",
-        "weights": {
-          "pref_italiana": 5,
-          "slow_food": 3,
-          "indulgente": 2
-        }
-      },
-      {
-        "text": "Tacos",
-        "weights": {
-          "street_food": 4,
-          "pref_guatemalteca": 5,
-          "contundente": 3
-        }
-      },
-      {
-        "text": "Parrillada",
-        "weights": {
-          "contundente": 5,
-          "social_grupo": 3,
-          "premium": 2
-        }
-      },
-      {
-        "text": "Cafe + postre",
-        "weights": {
-          "casual": 4,
-          "social_pareja": 3,
-          "slow_food": 2
-        }
-      },
-      {
-        "text": "Ramen",
-        "weights": {
-          "pref_japonesa": 5,
-          "sabor_umami": 4,
-          "explorador": 2
-        }
-      },
-      {
-        "text": "Pizza",
-        "weights": {
-          "pref_italiana": 4,
-          "casual": 4,
-          "social_grupo": 2
-        }
-      }
-    ]
-  }
+ONBOARDING_STEPS = [
+    {
+        "id": "estilo",
+        "title": "Estilo gastronomico",
+        "subtitle": "Que buscas normalmente cuando sales a comer?",
+        "options": [
+            {"text": "Comfort food", "weights": {"comfort_food": 5, "casual": 3, "slow_food": 2}},
+            {"text": "Experiencia gourmet", "weights": {"gourmet": 5, "premium": 4, "elegant": 3}},
+            {"text": "Algo rapido", "weights": {"comida_rapida": 5, "fast_service": 4, "fast_food": 3}},
+            {"text": "Algo trendy", "weights": {"trendy": 5, "moderno": 4, "aesthetic": 3}},
+            {"text": "Lugar para conversar", "weights": {"tranquil": 5, "intimate": 4, "slow_food": 3}},
+            {"text": "Lugar aesthetic", "weights": {"aesthetic": 5, "trendy": 4, "brunch": 2}},
+            {"text": "Algo para compartir", "weights": {"social_grupo": 5, "comfort_food": 3, "lively": 2}},
+            {"text": "Algo practico", "weights": {"fast_service": 5, "comida_rapida": 4, "equilibrado": 2}},
+        ],
+    },
+    {
+        "id": "exploracion",
+        "title": "Exploracion",
+        "subtitle": "Que tan dispuesto estas a probar lugares nuevos?",
+        "options": [
+            {"text": "Voy siempre a los mismos lugares", "weights": {"rutinero": 5, "tradicional": 4}},
+            {"text": "A veces pruebo algo nuevo", "weights": {"equilibrado": 5, "explorador": 2}},
+            {"text": "Me gusta descubrir restaurantes", "weights": {"explorador": 5, "aventurero": 4, "trendy": 2}},
+            {"text": "Busco constantemente experiencias nuevas", "weights": {"explorador": 5, "aventurero": 5, "moderno": 4}},
+        ],
+    },
+    {
+        "id": "social",
+        "title": "Contexto social",
+        "subtitle": "Como suelen ser tus salidas?",
+        "options": [
+            {"text": "Solo", "weights": {"social_solo": 5, "tranquil": 3, "intimate": 2}},
+            {"text": "Pareja", "weights": {"social_pareja": 5, "romantic": 4, "intimate": 3}},
+            {"text": "Amigos", "weights": {"social_grupo": 5, "lively": 4, "nightlife": 2}},
+            {"text": "Familia", "weights": {"social_familia": 5, "family_friendly": 4, "comfort_food": 2}},
+            {"text": "Trabajo / reuniones", "weights": {"business_dining": 5, "elegant": 3, "fast_service": 2}},
+        ],
+    },
+    {
+        "id": "energia",
+        "title": "Energia del lugar",
+        "subtitle": "Que ambiente disfrutas mas?",
+        "options": [
+            {"text": "Tranquilo", "weights": {"tranquil": 5, "slow_food": 3, "intimate": 2}},
+            {"text": "Elegante", "weights": {"elegant": 5, "gourmet": 3, "premium": 3}},
+            {"text": "Casual", "weights": {"casual": 5, "comfort_food": 3, "equilibrado": 2}},
+            {"text": "Ruidoso / social", "weights": {"lively": 5, "social_grupo": 4, "nightlife": 3}},
+            {"text": "Moderno", "weights": {"moderno": 5, "trendy": 4, "aesthetic": 2}},
+            {"text": "Exclusivo", "weights": {"exclusive": 5, "premium": 4, "gourmet": 3}},
+        ],
+    },
+    {
+        "id": "sabores",
+        "title": "Intensidad de sabores",
+        "subtitle": "Que perfil de sabor te representa mejor?",
+        "options": [
+            {"text": "Suave", "weights": {"sabor_fresco": 5, "balanced_flavor": 4, "saludable": 2}},
+            {"text": "Balanceado", "weights": {"equilibrado": 5, "balanced_flavor": 4}},
+            {"text": "Intenso", "weights": {"intense_flavor": 5, "sabor_umami": 4, "contundente": 2}},
+            {"text": "Picante", "weights": {"sabor_picante": 5, "spicy": 5}},
+            {"text": "Ahumado", "weights": {"smoky": 5, "contundente": 4, "premium": 2}},
+            {"text": "Dulce / salado", "weights": {"sabor_dulce": 4, "sabor_salado": 4, "dessert_focus": 3}},
+        ],
+    },
+    {
+        "id": "presupuesto",
+        "title": "Presupuesto",
+        "subtitle": "Cuanto sueles invertir por persona en una salida?",
+        "options": [
+            {"text": "Prefiero comer en casa", "rango": "en_casa", "weights": {"home_dining": 5, "comfort_food": 3, "ahorrador": 4}},
+            {"text": "Q50 - Q150", "rango": "q50_150", "weights": {"ahorrador": 5, "casual": 3, "street_food": 2}},
+            {"text": "Q150 - Q300", "rango": "q150_300", "weights": {"equilibrado": 5, "casual": 2}},
+            {"text": "Q300 - Q600", "rango": "q300_600", "weights": {"equilibrado": 4, "indulgente": 3}},
+            {"text": "Q600 - Q1000", "rango": "q600_1000", "weights": {"premium": 4, "gourmet": 3}},
+            {"text": "Q1000 - Q2000", "rango": "q1000_2000", "weights": {"premium": 5, "exclusive": 4, "gourmet": 3}},
+            {"text": "Mas de Q2000", "rango": "mas_2000", "weights": {"exclusive": 5, "indulgente": 4, "premium": 4}},
+        ],
+    },
+    {
+        "id": "comida",
+        "title": "Preferencias reales",
+        "subtitle": "Que escogerias AHORA MISMO?",
+        "card_layout": True,
+        "options": [
+            {"text": "Sushi premium", "emoji": "🍣", "weights": {"pref_japonesa": 5, "gourmet": 4, "premium": 3}},
+            {"text": "Ramen", "emoji": "🍜", "weights": {"pref_japonesa": 5, "sabor_umami": 4, "comfort_food": 2}},
+            {"text": "Tacos callejeros", "emoji": "🌮", "weights": {"street_food": 5, "pref_guatemalteca": 4}},
+            {"text": "Pizza artesanal", "emoji": "🍕", "weights": {"pref_italiana": 5, "casual": 3}},
+            {"text": "Steakhouse", "emoji": "🥩", "weights": {"contundente": 5, "premium": 4, "smoky": 3}},
+            {"text": "Cafe & brunch", "emoji": "☕", "weights": {"brunch": 5, "aesthetic": 4, "trendy": 2}},
+            {"text": "Burgers gourmet", "emoji": "🍔", "weights": {"comfort_food": 4, "moderno": 3, "casual": 3}},
+            {"text": "Parrillada", "emoji": "🔥", "weights": {"contundente": 5, "smoky": 4, "social_grupo": 2}},
+            {"text": "Pasta cremosa", "emoji": "🍝", "weights": {"pref_italiana": 5, "slow_food": 3, "comfort_food": 2}},
+            {"text": "Poke bowl", "emoji": "🥙", "weights": {"saludable": 5, "sabor_fresco": 4, "pref_japonesa": 2}},
+            {"text": "Comida coreana", "emoji": "🇰🇷", "weights": {"pref_coreana": 5, "spicy": 3, "explorador": 2}},
+            {"text": "Comida mediterranea", "emoji": "🫒", "weights": {"pref_mediterranea": 5, "sabor_fresco": 3, "saludable": 2}},
+        ],
+    },
 ]
-"""
-
-ONBOARDING_STEPS = json.loads(_ONBOARDING_JSON)
 
 FOOD_TO_CUISINE = {
     "pref_japonesa": "Japonesa",
     "pref_italiana": "Italiana",
     "pref_guatemalteca": "Guatemalteca",
+    "pref_coreana": "Coreana",
+    "pref_mediterranea": "Mediterranea",
     "sabor_umami": "Japonesa",
     "sabor_dulce": "Italiana",
     "sabor_salado": "Italiana",
@@ -292,7 +122,6 @@ FOOD_TO_CUISINE = {
 
 
 def map_food_to_cuisines(profile_scores: dict[str, float]) -> list[str]:
-    """Devuelve cocinas a sincronizar con LIKES_CUISINE segun prefs altas."""
     threshold = 6.0
     out: list[str] = []
     seen: set[str] = set()
@@ -312,15 +141,19 @@ def _merge_weights(target: dict[str, float], weights: dict[str, int | float]) ->
 
 
 class OnboardingWizard(ttk.Frame):
-    """Asistente de 6 pasos con tarjetas de opcion."""
+    """Asistente de 7 pasos con tarjetas y auto-avance."""
 
-    def __init__(self, master=None, on_step_change=None, **kwargs):
+    AUTO_MS = 400
+
+    def __init__(self, master=None, on_step_change=None, on_complete=None, **kwargs):
         super().__init__(master, **kwargs)
         self._on_step_change = on_step_change
+        self._on_complete = on_complete
         self._step_index = 0
         self._scores: dict[str, float] = {}
+        self._presupuesto_rango: str | None = None
         self._selections: list[int | None] = [None] * len(ONBOARDING_STEPS)
-        self._option_buttons: list[ttk.Button] = []
+        self._pending_after_id: str | None = None
 
         self.progress_var = tk.DoubleVar(value=(1 / len(ONBOARDING_STEPS)) * 100)
         self.step_label_var = tk.StringVar()
@@ -328,12 +161,17 @@ class OnboardingWizard(ttk.Frame):
         header = ttk.Frame(self, style="Card.TFrame", padding=12)
         header.pack(fill=tk.X, pady=(0, 8))
         ttk.Label(header, textvariable=self.step_label_var, style="Subtitle.TLabel").pack(anchor=tk.W)
-        ttk.Progressbar(header, variable=self.progress_var, maximum=100, style="Horizontal.TProgressbar").pack(
-            fill=tk.X, pady=(8, 0)
+        self._progress = ttk.Progressbar(
+            header,
+            variable=self.progress_var,
+            maximum=100,
+            style="Horizontal.TProgressbar",
+            mode="determinate",
         )
+        self._progress.pack(fill=tk.X, pady=(8, 0))
 
         self.question_var = tk.StringVar()
-        ttk.Label(self, textvariable=self.question_var, wraplength=520, style="Card.TLabel").pack(
+        ttk.Label(self, textvariable=self.question_var, wraplength=560, style="Card.TLabel").pack(
             anchor=tk.W, padx=4, pady=(0, 10)
         )
 
@@ -344,53 +182,67 @@ class OnboardingWizard(ttk.Frame):
         nav.pack(fill=tk.X, pady=12)
         self.btn_prev = ttk.Button(nav, text="Anterior", command=self._prev_step)
         self.btn_prev.pack(side=tk.LEFT)
-        self.btn_next = ttk.Button(nav, text="Siguiente", style="Accent.TButton", command=self._next_step)
-        self.btn_next.pack(side=tk.RIGHT)
 
         self._render_step()
 
     def get_final_profile(self) -> dict[str, float]:
         return dict(sorted(self._scores.items(), key=lambda x: (-x[1], x[0])))
 
+    def get_presupuesto_sugerido(self) -> int:
+        from user_manager import presupuesto_desde_rango
+
+        if self._presupuesto_rango:
+            return presupuesto_desde_rango(self._presupuesto_rango)
+        return 150
+
     def reset(self) -> None:
+        if self._pending_after_id:
+            self.after_cancel(self._pending_after_id)
+            self._pending_after_id = None
         self._step_index = 0
         self._scores.clear()
+        self._presupuesto_rango = None
         self._selections = [None] * len(ONBOARDING_STEPS)
         self._render_step()
 
     def load_profile(self, profile: dict[str, float]) -> None:
+        self.reset()
         self._scores = {k: float(v) for k, v in (profile or {}).items()}
-        self._step_index = 0
-        self._selections = [None] * len(ONBOARDING_STEPS)
-        self._render_step()
 
     def _render_step(self) -> None:
+        if self._pending_after_id:
+            self.after_cancel(self._pending_after_id)
+            self._pending_after_id = None
+
         step = ONBOARDING_STEPS[self._step_index]
         n = len(ONBOARDING_STEPS)
-        self.step_label_var.set(f"Paso {self._step_index + 1} de {n}: {step['title']}")
+        self.step_label_var.set("Paso %d de %d: %s" % (self._step_index + 1, n, step["title"]))
         self.progress_var.set(((self._step_index + 1) / n) * 100)
         self.question_var.set(step.get("subtitle") or step.get("title") or "")
 
         for w in self.options_frame.winfo_children():
             w.destroy()
-        self._option_buttons.clear()
 
         selected_idx = self._selections[self._step_index]
+        card_layout = bool(step.get("card_layout"))
+        cols = 3 if card_layout else 2
+
         for i, opt in enumerate(step["options"]):
-            style = "Selected.Option.TButton" if selected_idx == i else "Option.TButton"
+            label = opt.get("text", "")
+            if card_layout:
+                label = "%s\n%s" % (opt.get("emoji", ""), label)
+            style = "Selected.OptionCard.TButton" if selected_idx == i else "OptionCard.TButton"
             btn = ttk.Button(
                 self.options_frame,
-                text=opt["text"],
+                text=label,
                 style=style,
                 command=lambda idx=i, o=opt: self._select_option(idx, o),
             )
-            btn.grid(row=i // 2, column=i % 2, sticky=tk.EW, padx=6, pady=6)
-            self._option_buttons.append(btn)
-        self.options_frame.columnconfigure(0, weight=1)
-        self.options_frame.columnconfigure(1, weight=1)
+            btn.grid(row=i // cols, column=i % cols, sticky=tk.NSEW, padx=6, pady=6)
+        for c in range(cols):
+            self.options_frame.columnconfigure(c, weight=1)
 
         self.btn_prev.state(["!disabled"] if self._step_index > 0 else ["disabled"])
-        self.btn_next.configure(text="Finalizar" if self._step_index >= n - 1 else "Siguiente")
         if self._on_step_change:
             self._on_step_change()
 
@@ -402,20 +254,34 @@ class OnboardingWizard(ttk.Frame):
                 self._scores[k] = self._scores.get(k, 0.0) - float(v)
                 if self._scores.get(k, 0) <= 0:
                     self._scores.pop(k, None)
+            if ONBOARDING_STEPS[self._step_index]["id"] == "presupuesto":
+                self._presupuesto_rango = None
+
         self._selections[self._step_index] = index
         _merge_weights(self._scores, option.get("weights", {}))
+        if option.get("rango"):
+            self._presupuesto_rango = option["rango"]
         self._render_step()
 
-    def _prev_step(self) -> None:
-        if self._step_index > 0:
-            self._step_index -= 1
-            self._render_step()
+        if self._pending_after_id:
+            self.after_cancel(self._pending_after_id)
+        self._pending_after_id = self.after(self.AUTO_MS, self._auto_next)
 
-    def _next_step(self) -> None:
+    def _auto_next(self) -> None:
+        self._pending_after_id = None
         if self._selections[self._step_index] is None:
             return
         if self._step_index < len(ONBOARDING_STEPS) - 1:
             self._step_index += 1
             self._render_step()
-        elif self._on_step_change:
-            self._on_step_change()
+            return
+        if self._on_complete:
+            self._on_complete()
+
+    def _prev_step(self) -> None:
+        if self._pending_after_id:
+            self.after_cancel(self._pending_after_id)
+            self._pending_after_id = None
+        if self._step_index > 0:
+            self._step_index -= 1
+            self._render_step()
