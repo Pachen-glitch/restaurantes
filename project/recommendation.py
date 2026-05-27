@@ -1,9 +1,27 @@
 """Motor de recomendaciones basado en grafos."""
 
+from __future__ import annotations
+
+import math
+from collections import defaultdict
+
 from neo4j.exceptions import Neo4jError
 from database import get_session
+from user_manager import ensure_preference_catalog
 
 SEP = "=" * 60
+
+
+def cosine_similarity(vec_a: dict[str, float], vec_b: dict[str, float]) -> float:
+    if not vec_a or not vec_b:
+        return 0.0
+    keys = set(vec_a) | set(vec_b)
+    dot = sum(vec_a.get(k, 0.0) * vec_b.get(k, 0.0) for k in keys)
+    na = math.sqrt(sum(vec_a.get(k, 0.0) ** 2 for k in keys))
+    nb = math.sqrt(sum(vec_b.get(k, 0.0) ** 2 for k in keys))
+    if na == 0 or nb == 0:
+        return 0.0
+    return dot / (na * nb)
 
 
 def obtener_usuarios():
@@ -124,6 +142,111 @@ def actualizar_usuario(usuario_id, nombre, presupuesto, zona, cocinas):
             )
 
 
+def obtener_preferencias_usuario(usuario_id: str) -> dict[str, float]:
+    query = """
+    MATCH (u:User {id: $id})-[r:HAS_PREFERENCE]->(p:Preference)
+    RETURN p.nombre AS pref, r.score AS score
+    """
+    with get_session() as session:
+        return {row["pref"]: float(row["score"]) for row in session.run(query, id=usuario_id)}
+
+
+def _restaurant_preference_vectors() -> dict[str, dict[str, float]]:
+    query = """
+    MATCH (r:Restaurant)-[m:MATCHES_PREFERENCE]->(p:Preference)
+    RETURN r.id AS id, p.nombre AS pref, m.weight AS weight
+    """
+    out: dict[str, dict[str, float]] = defaultdict(dict)
+    with get_session() as session:
+        for row in session.run(query):
+            out[row["id"]][row["pref"]] = float(row["weight"])
+    return dict(out)
+
+
+def _similar_users_visits(usuario_id: str) -> dict[str, int]:
+    query = """
+    MATCH (u:User {id: $usuario_id})
+    OPTIONAL MATCH (u)-[:VISITED]->(visitado:Restaurant)
+    WITH u, collect(DISTINCT visitado.id) AS visitados
+    MATCH (u)-[:LIKES_CUISINE]->(c:Cuisine)<-[:LIKES_CUISINE]-(similar:User)
+    WHERE similar <> u
+    WITH visitados, similar, count(DISTINCT c) AS shared
+    WHERE shared > 0
+    MATCH (similar)-[:VISITED]->(r:Restaurant)
+    WHERE NOT r.id IN visitados
+    RETURN r.id AS restaurante_id, count(DISTINCT similar) AS similares
+    """
+    with get_session() as session:
+        return {r["restaurante_id"]: int(r["similares"]) for r in session.run(query, usuario_id=usuario_id)}
+
+
+def recomendar_restaurantes_inteligente(usuario_id: str) -> list[dict]:
+    ensure_preference_catalog()
+    user_prefs = obtener_preferencias_usuario(usuario_id)
+    rest_prefs = _restaurant_preference_vectors()
+    similares_map = _similar_users_visits(usuario_id)
+
+    query = """
+    MATCH (u:User {id: $usuario_id})
+    OPTIONAL MATCH (u)-[:VISITED]->(vr:Restaurant)
+    WITH u, collect(DISTINCT vr.id) AS visitados
+    MATCH (r:Restaurant)
+    WHERE NOT r.id IN visitados AND r.precio <= u.presupuesto
+    OPTIONAL MATCH (u)-[:LIVES_IN]->(zu:Zone)
+    OPTIONAL MATCH (r)-[:LOCATED_IN]->(zr:Zone)
+    OPTIONAL MATCH (r)-[:HAS_CUISINE]->(rc:Cuisine)
+    RETURN r.id AS id, r.nombre AS nombre, r.rating AS rating, r.precio AS precio,
+           zr.nombre AS zona,
+           CASE WHEN zu IS NOT NULL AND zr = zu THEN 1 ELSE 0 END AS misma_zona,
+           collect(DISTINCT rc.nombre) AS cocinas
+    """
+    try:
+        with get_session() as session:
+            candidatos = [dict(r) for r in session.run(query, usuario_id=usuario_id)]
+    except Neo4jError as exc:
+        raise RuntimeError(f"Error al recomendar: {exc}") from exc
+
+    max_sim = max(similares_map.values(), default=1) or 1
+    scored: list[dict] = []
+    for row in candidatos:
+        rid = row["id"]
+        rp = rest_prefs.get(rid, {})
+        match_pref = cosine_similarity(user_prefs, rp) if user_prefs else 0.0
+        similares = similares_map.get(rid, 0)
+        rating = float(row.get("rating") or 0)
+        misma_zona = int(row.get("misma_zona") or 0)
+        match_pct = match_pref * 100
+        sim_pct = (similares / max_sim) * 100 if similares else 0
+        rating_pct = (rating / 5.0) * 100
+        zone_pct = 100 if misma_zona else 0
+        score_total = round(
+            0.45 * match_pct + 0.25 * sim_pct + 0.2 * rating_pct + 0.1 * zone_pct,
+            1,
+        )
+        item = dict(row)
+        item["cocinas"] = [c for c in (item.get("cocinas") or []) if c]
+        item["match_pref"] = round(match_pref, 3)
+        item["usuarios_similares"] = similares
+        item["similares"] = similares
+        item["score_total"] = min(100.0, max(0.0, score_total))
+        scored.append(item)
+
+    scored.sort(
+        key=lambda x: (
+            x.get("score_total", 0),
+            x.get("usuarios_similares", 0),
+            x.get("misma_zona", 0),
+            x.get("rating", 0),
+        ),
+        reverse=True,
+    )
+    return scored[:5]
+
+
+def recomendar_restaurantes(usuario_id):
+    return recomendar_restaurantes_inteligente(usuario_id)
+
+
 def _node_key(label, props):
     if label in ("User", "Restaurant"):
         return f"{label}:{props.get('id', '')}"
@@ -136,16 +259,16 @@ def obtener_datos_grafo():
 
     node_query = """
     MATCH (n)
-    WHERE n:User OR n:Restaurant OR n:Cuisine OR n:Zone
+    WHERE n:User OR n:Restaurant OR n:Cuisine OR n:Zone OR n:Preference
     RETURN labels(n)[0] AS label, properties(n) AS props
     """
     rel_query = """
     MATCH (a)-[r]->(b)
-    WHERE (a:User OR a:Restaurant OR a:Cuisine OR a:Zone)
-      AND (b:User OR b:Restaurant OR b:Cuisine OR b:Zone)
+    WHERE (a:User OR a:Restaurant OR a:Cuisine OR a:Zone OR a:Preference)
+      AND (b:User OR b:Restaurant OR b:Cuisine OR b:Zone OR b:Preference)
     RETURN labels(a)[0] AS la, properties(a) AS pa,
            labels(b)[0] AS lb, properties(b) AS pb,
-           type(r) AS rel
+           type(r) AS rel, properties(r) AS rprops
     """
 
     with get_session() as session:
@@ -159,6 +282,7 @@ def obtener_datos_grafo():
         for rec in session.run(rel_query):
             la, pa = rec["la"], dict(rec["pa"])
             lb, pb = rec["lb"], dict(rec["pb"])
+            rprops = dict(rec["rprops"] or {})
             source = _node_key(la, pa)
             target = _node_key(lb, pb)
             if source not in nodes:
@@ -173,43 +297,14 @@ def obtener_datos_grafo():
                     "label": lb,
                     "name": pb.get("nombre") or pb.get("id") or target,
                 }
-            edges.append({"source": source, "target": target, "rel": rec["rel"]})
+            edge = {"source": source, "target": target, "rel": rec["rel"]}
+            if rec["rel"] == "HAS_PREFERENCE" and "score" in rprops:
+                edge["score"] = rprops["score"]
+            if rec["rel"] == "MATCHES_PREFERENCE" and "weight" in rprops:
+                edge["weight"] = rprops["weight"]
+            edges.append(edge)
 
     return {"nodes": list(nodes.values()), "edges": edges}
-
-
-def recomendar_restaurantes(usuario_id):
-    query = """
-    MATCH (u:User {id: $usuario_id})
-    OPTIONAL MATCH (u)-[:VISITED]->(visitado:Restaurant)
-    WITH u, collect(DISTINCT visitado.id) AS visitados
-    MATCH (u)-[:LIKES_CUISINE]->(c:Cuisine)<-[:LIKES_CUISINE]-(similar:User)
-    WHERE similar <> u
-    WITH u, visitados, similar, count(DISTINCT c) AS cocinas_compartidas
-    WHERE cocinas_compartidas > 0
-    MATCH (similar)-[:VISITED]->(r:Restaurant)
-    WHERE NOT r.id IN visitados AND r.precio <= u.presupuesto
-    OPTIONAL MATCH (u)-[:LIVES_IN]->(zu:Zone)
-    OPTIONAL MATCH (r)-[:LOCATED_IN]->(zr:Zone)
-    OPTIONAL MATCH (r)-[:HAS_CUISINE]->(rc:Cuisine)
-    WITH r, count(DISTINCT similar) AS usuarios_similares, r.rating AS rating,
-         CASE WHEN zu IS NOT NULL AND zr = zu THEN 1 ELSE 0 END AS misma_zona,
-         zr.nombre AS zona, collect(DISTINCT rc.nombre) AS cocinas
-    RETURN r.id AS id, r.nombre AS nombre, r.rating AS rating, r.precio AS precio,
-           usuarios_similares, misma_zona, zona, cocinas
-    ORDER BY usuarios_similares DESC, misma_zona DESC, rating DESC
-    LIMIT 5
-    """
-    try:
-        with get_session() as session:
-            rows = []
-            for r in session.run(query, usuario_id=usuario_id):
-                row = dict(r)
-                row["cocinas"] = [c for c in (row.get("cocinas") or []) if c]
-                rows.append(row)
-            return rows
-    except Neo4jError as exc:
-        raise RuntimeError(f"Error al recomendar: {exc}") from exc
 
 
 def obtener_historial_usuario(usuario_id):
@@ -253,9 +348,10 @@ def imprimir_recomendaciones(usuario_id, recs):
     for i, r in enumerate(recs, 1):
         cocinas = ", ".join(r.get("cocinas") or []) or "N/A"
         print(f"  #{i} {r['nombre']} ({r['id']})")
+        print(f"     Score IA: {r.get('score_total', 'N/A')} | Match pref: {r.get('match_pref', 'N/A')}")
         print(f"     Rating: {r['rating']} | Precio: Q{r['precio']} | Zona: {r.get('zona','N/A')}")
         print(f"     Cocinas: {cocinas}")
-        print(f"     Usuarios similares: {r['usuarios_similares']} | Misma zona: {'Si' if r['misma_zona'] else 'No'}")
+        print(f"     Usuarios similares: {r.get('usuarios_similares', r.get('similares', 0))} | Misma zona: {'Si' if r.get('misma_zona') else 'No'}")
     print()
 
 

@@ -7,27 +7,29 @@ import tkinter as tk
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.patches import Patch
+
+from styles import COLORS
 
 NODE_COLORS = {
-    "User": "#4a9eff",
-    "Restaurant": "#4ade80",
-    "Cuisine": "#fb923c",
-    "Zone": "#f87171",
+    "User": COLORS["user"],
+    "Restaurant": COLORS["restaurant"],
+    "Cuisine": COLORS["cuisine"],
+    "Zone": COLORS["zone"],
+    "Preference": COLORS["preference"],
 }
 
-BG = "#1e1e2e"
-TEXT = "#cdd6f4"
+BG = COLORS["surface"]
+TEXT = COLORS["text"]
 
 
 class GraphPanel(tk.Frame):
-    """Grafo embebido en Tkinter."""
-
     def __init__(self, master=None, **kwargs):
         super().__init__(master, bg=BG, **kwargs)
         self._highlight_ids: set[str] = set()
         self._graph_data = {"nodes": [], "edges": []}
 
-        self.figure = plt.Figure(figsize=(4.2, 5.5), dpi=96, facecolor=BG)
+        self.figure = plt.Figure(figsize=(4.4, 5.8), dpi=96, facecolor=BG)
         self.ax = self.figure.add_subplot(111)
         self.ax.set_facecolor(BG)
         self.ax.axis("off")
@@ -60,7 +62,7 @@ class GraphPanel(tk.Frame):
                 ha="center",
                 va="center",
                 color=TEXT,
-                fontsize=10,
+                fontsize=11,
                 transform=self.ax.transAxes,
             )
             self.canvas.draw_idle()
@@ -70,61 +72,80 @@ class GraphPanel(tk.Frame):
         for n in nodes:
             g.add_node(n["id"], label=n.get("label", ""), name=n.get("name", n["id"]))
         for e in edges:
-            g.add_edge(e["source"], e["target"], rel=e.get("rel", ""))
+            g.add_edge(
+                e["source"],
+                e["target"],
+                rel=e.get("rel", ""),
+                score=e.get("score"),
+                weight=e.get("weight"),
+            )
 
-        pos = nx.spring_layout(g, seed=42, k=0.85, iterations=40)
+        pos = nx.spring_layout(g, seed=42, k=1.1, iterations=50)
 
-        labels = {nid: (g.nodes[nid].get("name") or nid)[:10] for nid in g.nodes}
+        labels = {nid: (g.nodes[nid].get("name") or nid)[:12] for nid in g.nodes}
         colors = []
         sizes = []
-        edge_colors = []
         for nid in g.nodes:
             label = g.nodes[nid].get("label", "")
             base = NODE_COLORS.get(label, "#a6adc8")
             if nid in self._highlight_ids:
-                colors.append("#f9e2af")
-                sizes.append(520)
+                colors.append(COLORS["warning"])
+                sizes.append(620)
             else:
                 colors.append(base)
-                sizes.append(380 if label in ("User", "Restaurant") else 300)
+                if label == "Preference":
+                    sizes.append(340)
+                elif label in ("User", "Restaurant"):
+                    sizes.append(460)
+                else:
+                    sizes.append(360)
 
-        nx.draw_networkx_nodes(
-            g,
-            pos,
-            ax=self.ax,
-            node_color=colors,
-            node_size=sizes,
-            alpha=0.95,
-        )
-        nx.draw_networkx_labels(
-            g,
-            pos,
-            labels=labels,
-            font_size=6,
-            font_color=TEXT,
-            ax=self.ax,
-        )
+        nx.draw_networkx_nodes(g, pos, ax=self.ax, node_color=colors, node_size=sizes, alpha=0.95)
+        nx.draw_networkx_labels(g, pos, labels=labels, font_size=8, font_color=TEXT, ax=self.ax)
         nx.draw_networkx_edges(
             g,
             pos,
             ax=self.ax,
             edge_color="#6c7086",
             arrows=True,
-            arrowsize=8,
-            width=0.8,
-            alpha=0.7,
+            arrowsize=9,
+            width=0.9,
+            alpha=0.75,
         )
-        edge_labels = {
-            (u, v): g.edges[u, v].get("rel", "")[:12]
-            for u, v in g.edges
-        }
+
+        edge_labels = {}
+        for u, v in g.edges:
+            rel = g.edges[u, v].get("rel", "")
+            extra = ""
+            if rel == "HAS_PREFERENCE" and g.edges[u, v].get("score") is not None:
+                extra = f" {g.edges[u, v]['score']:.0f}"
+            elif rel == "MATCHES_PREFERENCE" and g.edges[u, v].get("weight") is not None:
+                extra = f" {g.edges[u, v]['weight']:.1f}"
+            edge_labels[(u, v)] = (rel[:10] + extra)[:14]
+
         nx.draw_networkx_edge_labels(
             g,
             pos,
             edge_labels=edge_labels,
-            font_size=5,
+            font_size=6,
             font_color="#bac2de",
             ax=self.ax,
+        )
+
+        legend_items = [
+            Patch(facecolor=NODE_COLORS["User"], label="Usuario"),
+            Patch(facecolor=NODE_COLORS["Restaurant"], label="Restaurante"),
+            Patch(facecolor=NODE_COLORS["Cuisine"], label="Cocina"),
+            Patch(facecolor=NODE_COLORS["Zone"], label="Zona"),
+            Patch(facecolor=NODE_COLORS["Preference"], label="Preferencia"),
+        ]
+        self.ax.legend(
+            handles=legend_items,
+            loc="lower left",
+            fontsize=7,
+            facecolor=COLORS["surface2"],
+            edgecolor=COLORS["surface3"],
+            labelcolor=TEXT,
         )
 
         self.figure.tight_layout(pad=0.2)

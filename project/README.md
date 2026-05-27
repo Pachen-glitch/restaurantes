@@ -189,3 +189,51 @@ matplotlib>=3.7
 ## Licencia
 
 Proyecto educativo de demostracion con Neo4j y Python.
+
+---
+
+## App inteligente (v2)
+
+Interfaz avanzada con perfil gastronomico, onboarding por pasos y motor de scoring:
+
+```powershell
+python gui.py
+```
+
+### Modulos nuevos
+
+| Archivo | Funcion |
+|---------|---------|
+| `styles.py` | Tema dark moderno |
+| `onboarding.py` | Wizard 6 pasos con scoring |
+| `user_manager.py` | Perfil gastronomico + nodos Preference |
+| `graph_view.py` | Grafo con nodos Preference (morado) |
+| `recommendation.py` | Cosine similarity + ranking inteligente |
+
+### Modelo extendido en Neo4j
+
+```
+(:User)-[:HAS_PREFERENCE {score: X}]->(:Preference)
+(:Restaurant)-[:MATCHES_PREFERENCE {weight: X}]->(:Preference)
+```
+
+No borra datos existentes. Solo MERGE de nodos Preference.
+
+### Onboarding
+
+1. Estilo general
+2. Exploracion
+3. Presupuesto emocional
+4. Contexto social
+5. Sabores
+6. Comida real (Sushi, Tacos, Ramen...)
+
+Cada respuesta suma pesos al perfil (no TRUE/FALSE).
+
+### Recomendador IA
+
+Score total (0-100) combina:
+- 45% match de preferencias (cosine similarity)
+- 25% usuarios similares
+- 20% rating
+- 10% misma zona
