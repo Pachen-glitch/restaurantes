@@ -17,6 +17,167 @@ def obtener_usuarios():
         return [dict(r) for r in session.run(query)]
 
 
+def obtener_zonas():
+    query = "MATCH (z:Zone) RETURN z.nombre AS nombre ORDER BY z.nombre"
+    with get_session() as session:
+        return [r["nombre"] for r in session.run(query)]
+
+
+def obtener_cocinas():
+    query = "MATCH (c:Cuisine) RETURN c.nombre AS nombre ORDER BY c.nombre"
+    with get_session() as session:
+        return [r["nombre"] for r in session.run(query)]
+
+
+def obtener_usuario_detalle(usuario_id):
+    query = """
+    MATCH (u:User {id: $usuario_id})
+    OPTIONAL MATCH (u)-[:LIVES_IN]->(z:Zone)
+    OPTIONAL MATCH (u)-[:LIKES_CUISINE]->(c:Cuisine)
+    RETURN u.id AS id, u.nombre AS nombre, u.presupuesto AS presupuesto,
+           z.nombre AS zona, collect(DISTINCT c.nombre) AS cocinas
+    """
+    with get_session() as session:
+        rec = session.run(query, usuario_id=usuario_id).single()
+        if rec is None:
+            return None
+        data = dict(rec)
+        data["cocinas"] = [c for c in (data.get("cocinas") or []) if c]
+        return data
+
+
+def crear_usuario(usuario_id, nombre, presupuesto, zona, cocinas):
+    if usuario_existe(usuario_id):
+        raise ValueError(f"El usuario '{usuario_id}' ya existe.")
+    cocinas = list(cocinas or [])
+    with get_session() as session:
+        session.run(
+            """
+            MERGE (u:User {id: $id})
+            SET u.nombre = $nombre, u.presupuesto = $presupuesto
+            """,
+            id=usuario_id,
+            nombre=nombre,
+            presupuesto=int(presupuesto),
+        )
+        session.run(
+            """
+            MATCH (u:User {id: $id})
+            MATCH (z:Zone {nombre: $zona})
+            MERGE (u)-[:LIVES_IN]->(z)
+            """,
+            id=usuario_id,
+            zona=zona,
+        )
+        for cocina in cocinas:
+            session.run(
+                """
+                MATCH (u:User {id: $id})
+                MATCH (c:Cuisine {nombre: $cocina})
+                MERGE (u)-[:LIKES_CUISINE]->(c)
+                """,
+                id=usuario_id,
+                cocina=cocina,
+            )
+
+
+def actualizar_usuario(usuario_id, nombre, presupuesto, zona, cocinas):
+    if not usuario_existe(usuario_id):
+        raise ValueError(f"El usuario '{usuario_id}' no existe.")
+    cocinas = list(cocinas or [])
+    with get_session() as session:
+        session.run(
+            """
+            MATCH (u:User {id: $id})
+            SET u.nombre = $nombre, u.presupuesto = $presupuesto
+            """,
+            id=usuario_id,
+            nombre=nombre,
+            presupuesto=int(presupuesto),
+        )
+        session.run(
+            "MATCH (u:User {id: $id})-[r:LIVES_IN]->() DELETE r",
+            id=usuario_id,
+        )
+        session.run(
+            "MATCH (u:User {id: $id})-[r:LIKES_CUISINE]->() DELETE r",
+            id=usuario_id,
+        )
+        session.run(
+            """
+            MATCH (u:User {id: $id})
+            MATCH (z:Zone {nombre: $zona})
+            MERGE (u)-[:LIVES_IN]->(z)
+            """,
+            id=usuario_id,
+            zona=zona,
+        )
+        for cocina in cocinas:
+            session.run(
+                """
+                MATCH (u:User {id: $id})
+                MATCH (c:Cuisine {nombre: $cocina})
+                MERGE (u)-[:LIKES_CUISINE]->(c)
+                """,
+                id=usuario_id,
+                cocina=cocina,
+            )
+
+
+def _node_key(label, props):
+    if label in ("User", "Restaurant"):
+        return f"{label}:{props.get('id', '')}"
+    return f"{label}:{props.get('nombre', '')}"
+
+
+def obtener_datos_grafo():
+    nodes = {}
+    edges = []
+
+    node_query = """
+    MATCH (n)
+    WHERE n:User OR n:Restaurant OR n:Cuisine OR n:Zone
+    RETURN labels(n)[0] AS label, properties(n) AS props
+    """
+    rel_query = """
+    MATCH (a)-[r]->(b)
+    WHERE (a:User OR a:Restaurant OR a:Cuisine OR a:Zone)
+      AND (b:User OR b:Restaurant OR b:Cuisine OR b:Zone)
+    RETURN labels(a)[0] AS la, properties(a) AS pa,
+           labels(b)[0] AS lb, properties(b) AS pb,
+           type(r) AS rel
+    """
+
+    with get_session() as session:
+        for rec in session.run(node_query):
+            label = rec["label"]
+            props = dict(rec["props"])
+            nid = _node_key(label, props)
+            name = props.get("nombre") or props.get("id") or nid
+            nodes[nid] = {"id": nid, "label": label, "name": name}
+
+        for rec in session.run(rel_query):
+            la, pa = rec["la"], dict(rec["pa"])
+            lb, pb = rec["lb"], dict(rec["pb"])
+            source = _node_key(la, pa)
+            target = _node_key(lb, pb)
+            if source not in nodes:
+                nodes[source] = {
+                    "id": source,
+                    "label": la,
+                    "name": pa.get("nombre") or pa.get("id") or source,
+                }
+            if target not in nodes:
+                nodes[target] = {
+                    "id": target,
+                    "label": lb,
+                    "name": pb.get("nombre") or pb.get("id") or target,
+                }
+            edges.append({"source": source, "target": target, "rel": rec["rel"]})
+
+    return {"nodes": list(nodes.values()), "edges": edges}
+
+
 def recomendar_restaurantes(usuario_id):
     query = """
     MATCH (u:User {id: $usuario_id})
@@ -30,16 +191,23 @@ def recomendar_restaurantes(usuario_id):
     WHERE NOT r.id IN visitados AND r.precio <= u.presupuesto
     OPTIONAL MATCH (u)-[:LIVES_IN]->(zu:Zone)
     OPTIONAL MATCH (r)-[:LOCATED_IN]->(zr:Zone)
+    OPTIONAL MATCH (r)-[:HAS_CUISINE]->(rc:Cuisine)
     WITH r, count(DISTINCT similar) AS usuarios_similares, r.rating AS rating,
-         CASE WHEN zu IS NOT NULL AND zr = zu THEN 1 ELSE 0 END AS misma_zona
+         CASE WHEN zu IS NOT NULL AND zr = zu THEN 1 ELSE 0 END AS misma_zona,
+         zr.nombre AS zona, collect(DISTINCT rc.nombre) AS cocinas
     RETURN r.id AS id, r.nombre AS nombre, r.rating AS rating, r.precio AS precio,
-           usuarios_similares, misma_zona
+           usuarios_similares, misma_zona, zona, cocinas
     ORDER BY usuarios_similares DESC, misma_zona DESC, rating DESC
     LIMIT 5
     """
     try:
         with get_session() as session:
-            return [dict(r) for r in session.run(query, usuario_id=usuario_id)]
+            rows = []
+            for r in session.run(query, usuario_id=usuario_id):
+                row = dict(r)
+                row["cocinas"] = [c for c in (row.get("cocinas") or []) if c]
+                rows.append(row)
+            return rows
     except Neo4jError as exc:
         raise RuntimeError(f"Error al recomendar: {exc}") from exc
 
@@ -83,8 +251,10 @@ def imprimir_recomendaciones(usuario_id, recs):
         print("  Sin recomendaciones disponibles.\n")
         return
     for i, r in enumerate(recs, 1):
+        cocinas = ", ".join(r.get("cocinas") or []) or "N/A"
         print(f"  #{i} {r['nombre']} ({r['id']})")
-        print(f"     Rating: {r['rating']} | Precio: Q{r['precio']}")
+        print(f"     Rating: {r['rating']} | Precio: Q{r['precio']} | Zona: {r.get('zona','N/A')}")
+        print(f"     Cocinas: {cocinas}")
         print(f"     Usuarios similares: {r['usuarios_similares']} | Misma zona: {'Si' if r['misma_zona'] else 'No'}")
     print()
 
