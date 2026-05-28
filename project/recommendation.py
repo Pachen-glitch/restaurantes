@@ -182,39 +182,137 @@ def _similar_users_visits(usuario_id: str) -> dict[str, int]:
 
 
 
+MOOD_BOOSTS: dict[str, dict[str, float]] = {
+    "comfort": {"comfort_food": 4.0, "casual": 3.0, "slow_food": 2.0},
+    "explorar": {"explorador": 5.0, "aventurero": 4.0, "trendy": 2.5},
+    "premium": {"premium": 5.0, "gourmet": 4.0, "exclusive": 3.5, "rooftop": 3.0},
+    "social": {"social_grupo": 5.0, "lively": 3.5, "nightlife": 3.0},
+    "chill": {"tranquil": 4.0, "coffee_culture": 3.5, "brunch": 3.0},
+    "romantico": {"romantic": 5.0, "intimate": 4.0, "elegant": 2.5},
+    "trabajo": {"business_dining": 5.0, "fast_service": 3.0, "elegant": 2.0},
+    "familiar": {"family_friendly": 5.0, "comfort_food": 3.0, "casual": 2.5},
+}
+
+
+def apply_mood_boost(user_prefs: dict[str, float], mood: str | None) -> dict[str, float]:
+    """Aplica boost temporal de mood sin modificar el perfil en Neo4j."""
+    if not mood:
+        return dict(user_prefs)
+    boosts = MOOD_BOOSTS.get(mood, {})
+    if not boosts:
+        return dict(user_prefs)
+    boosted = dict(user_prefs)
+    for pref, delta in boosts.items():
+        boosted[pref] = boosted.get(pref, 0.0) + float(delta)
+    return boosted
+
+
+def obtener_insights_usuario(usuario_id: str) -> dict:
+    """Agrega insights visuales a partir de perfil y recomendaciones existentes."""
+    perfil = obtener_preferencias_usuario(usuario_id)
+    recs = recomendar_restaurantes_inteligente(usuario_id)
+    detalle = obtener_usuario_detalle(usuario_id) or {}
+
+    top_prefs = sorted(perfil.items(), key=lambda x: -x[1])[:8]
+    top_pref_key = top_prefs[0][0] if top_prefs else ""
+    top_pref_label = PREF_LABELS_ES.get(top_pref_key, top_pref_key.replace("_", " "))
+
+    cocina_counts: dict[str, int] = {}
+    zona_counts: dict[str, int] = {}
+    for r in recs:
+        for c in r.get("cocinas") or []:
+            cocina_counts[c] = cocina_counts.get(c, 0) + 1
+        z = r.get("zona")
+        if z:
+            zona_counts[z] = zona_counts.get(z, 0) + 1
+
+    compat_vals = [float(r.get("compatibilidad_pct") or 0) for r in recs]
+    compat_media = "%.0f%%" % (sum(compat_vals) / len(compat_vals)) if compat_vals else "—"
+
+    heatmap = {k: min(10.0, v / 3.0) for k, v in top_prefs[:8]}
+
+    return {
+        "top_zona": detalle.get("zona") or (max(zona_counts, key=zona_counts.get) if zona_counts else "—"),
+        "top_cocina": max(cocina_counts, key=cocina_counts.get) if cocina_counts else "—",
+        "top_pref": top_pref_key,
+        "top_pref_label": top_pref_label,
+        "compat_media": compat_media,
+        "top_prefs": top_prefs,
+        "heatmap": heatmap,
+        "top_restaurants": [
+            {
+                "nombre": r.get("nombre"),
+                "pct": int(r.get("compatibilidad_pct") or 0),
+                "zona": r.get("zona"),
+            }
+            for r in recs[:5]
+        ],
+    }
+
+
 PREF_LABELS_ES = {
-    "gourmet": "experiencia gourmet",
-    "premium": "nivel premium",
-    "casual": "ambiente casual",
-    "romantic": "ideal para pareja",
-    "family_friendly": "apto para familia",
-    "street_food": "sabor callejero",
-    "pref_japonesa": "cocina japonesa",
+    "gourmet": "experiencias gourmet",
+    "premium": "lugares premium",
+    "casual": "ambientes casuales",
+    "romantic": "cenas romanticas",
+    "family_friendly": "salidas en familia",
+    "street_food": "sabor callejero autentico",
+    "pref_japonesa": "comida japonesa",
     "pref_italiana": "cocina italiana",
-    "pref_guatemalteca": "cocina guatemalteca",
-    "sabor_umami": "perfil umami",
-    "sabor_picante": "notas picantes",
-    "tranquil": "ambiente tranquilo",
-    "trendy": "lugar trendy",
-    "brunch": "estilo brunch",
-    "exclusive": "experiencia exclusiva",
-    "comfort_food": "comida reconfortante",
-    "slow_food": "ritmo slow food",
-    "explorador": "espiritu explorador",
-    "contundente": "platos contundentes",
-    "aesthetic": "presentacion aesthetic",
-    "nightlife": "vida nocturna",
-    "elegant": "elegancia",
-    "smoky": "notas ahumadas",
-    "saludable": "opciones saludables",
-    "business_dining": "salidas de trabajo",
+    "pref_guatemalteca": "sabores guatemaltecos",
+    "pref_mexicana": "cocina mexicana",
     "pref_coreana": "cocina coreana",
     "pref_mediterranea": "cocina mediterranea",
+    "sabor_umami": "perfil umami",
+    "sabor_picante": "notas picantes",
+    "tranquil": "ambientes tranquilos",
+    "trendy": "lugares modernos y trendy",
+    "brunch": "brunch de fin de semana",
+    "exclusive": "experiencias exclusivas",
+    "comfort_food": "comida reconfortante",
+    "slow_food": "ritmo slow food",
+    "explorador": "explorar experiencias nuevas",
+    "aventurero": "descubrir sabores nuevos",
+    "contundente": "platos contundentes",
+    "aesthetic": "presentacion aesthetic",
+    "nightlife": "ambiente nocturno",
+    "elegant": "elegancia en el servicio",
+    "smoky": "notas ahumadas",
+    "saludable": "opciones saludables",
+    "business_dining": "comidas de negocios",
     "fast_service": "servicio rapido",
     "home_dining": "comer en casa",
-    "lively": "ambiente animado",
-    "intimate": "ambiente intimo",
+    "lively": "ambientes animados",
+    "intimate": "espacios intimos",
+    "rooftop": "terraza con vista",
+    "coffee_culture": "cultura de cafe de especialidad",
+    "asian_fusion": "fusion asiatica",
+    "wine_focus": "maridaje con vino",
+    "craft_beer": "cerveza artesanal",
+    "social_grupo": "salidas sociales en grupo",
+    "location_focus": "ubicacion conveniente",
+    "presentation_focus": "presentacion impecable",
+    "flavor_focus": "intensidad de sabor",
+    "service_focus": "servicio destacado",
+    "price_focus": "buena relacion precio-calidad",
 }
+
+
+def _restaurant_headline(nombre: str, tipo: str, rest_prefs: dict[str, float]) -> str:
+    tipo_l = (tipo or "").lower()
+    if rest_prefs.get("rooftop", 0) >= 0.7 and (
+        rest_prefs.get("pref_japonesa", 0) >= 0.7 or "sushi" in tipo_l or "japon" in tipo_l
+    ):
+        return "Te recomendamos %s, un rooftop japones, porque:" % nombre
+    if rest_prefs.get("rooftop", 0) >= 0.7:
+        return "Te recomendamos %s, un rooftop con vista, porque:" % nombre
+    if rest_prefs.get("pref_japonesa", 0) >= 0.8:
+        return "Te recomendamos %s por su propuesta japonesa porque:" % nombre
+    if rest_prefs.get("brunch", 0) >= 0.7 and rest_prefs.get("aesthetic", 0) >= 0.7:
+        return "Te recomendamos %s para brunch aesthetic porque:" % nombre
+    if rest_prefs.get("premium", 0) >= 0.8:
+        return "Te recomendamos %s como experiencia premium porque:" % nombre
+    return "Te recomendamos %s porque:" % nombre
 
 
 def generar_explicacion(
@@ -224,8 +322,10 @@ def generar_explicacion(
     *,
     misma_zona: bool = False,
     explorador_score: float = 0.0,
+    tipo: str = "",
+    descripcion: str = "",
 ) -> list[str]:
-    """Genera bullets en espanol tipo 'X coincide contigo porque...'."""
+    """Genera bullets en espanol tipo recomendacion hiper personalizada."""
     bullets: list[str] = []
     coincidencias: list[tuple[str, float]] = []
     for pref, u_score in user_prefs.items():
@@ -237,18 +337,41 @@ def generar_explicacion(
 
     for pref, _ in coincidencias[:4]:
         label = PREF_LABELS_ES.get(pref, pref.replace("_", " "))
-        bullets.append("disfrutas %s" % label if pref.startswith(("sabor_", "pref_")) else "valoras %s" % label)
+        if pref.startswith("pref_"):
+            bullets.append("tienes alta afinidad con %s" % label)
+        elif pref in ("explorador", "aventurero"):
+            bullets.append("te gusta %s" % label)
+        elif pref in ("premium", "exclusive", "gourmet"):
+            bullets.append("buscas %s" % label)
+        elif pref in ("trendy", "aesthetic", "moderno"):
+            bullets.append("disfrutas %s" % label)
+        elif pref in ("romantic", "intimate"):
+            bullets.append("valoras %s" % label)
+        else:
+            bullets.append("coincides en %s" % label)
 
+    if rest_prefs.get("rooftop", 0) >= 0.7 and max(
+        user_prefs.get("premium", 0),
+        user_prefs.get("nightlife", 0),
+        user_prefs.get("trendy", 0),
+    ) >= 5:
+        bullets.append("te atraen terrazas y ambientes con vista")
     if rest_prefs.get("pref_japonesa", 0) >= 0.7 and user_prefs.get("pref_japonesa", 0) >= 6:
-        bullets.append("tienes alta afinidad con comida japonesa")
+        bullets.append("tienes alta afinidad con comida asiatica y japonesa")
     if rest_prefs.get("pref_italiana", 0) >= 0.7 and user_prefs.get("pref_italiana", 0) >= 6:
         bullets.append("te atrae la cocina italiana")
     if rest_prefs.get("premium", 0) >= 0.7 and user_prefs.get("premium", 0) >= 5:
         bullets.append("buscas experiencias premium")
-    if rest_prefs.get("tranquil", 0) >= 0.7 and user_prefs.get("tranquil", 0) >= 5:
-        bullets.append("prefieres ambientes tranquilos")
+    if rest_prefs.get("aesthetic", 0) >= 0.7 and user_prefs.get("aesthetic", 0) >= 5:
+        bullets.append("disfrutas ambientes modernos y bien presentados")
+    if rest_prefs.get("coffee_culture", 0) >= 0.7 and user_prefs.get("coffee_culture", 0) >= 5:
+        bullets.append("valoras la cultura del cafe de especialidad")
     if explorador_score >= 6 and rest_prefs.get("trendy", 0) >= 0.6:
         bullets.append("te gusta explorar restaurantes nuevos")
+    if rest_prefs.get("saludable", 0) >= 0.7 and user_prefs.get("saludable", 0) >= 5:
+        bullets.append("priorizas opciones saludables y frescas")
+    if rest_prefs.get("business_dining", 0) >= 0.7 and user_prefs.get("business_dining", 0) >= 5:
+        bullets.append("necesitas un lugar ideal para reuniones de trabajo")
 
     if misma_zona:
         bullets.append("esta en tu zona habitual")
@@ -261,9 +384,13 @@ def generar_explicacion(
             unique.append(b)
 
     if not unique:
-        unique.append("tu perfil gastronomico encaja con el estilo de este lugar")
+        if descripcion:
+            unique.append(descripcion[:120])
+        else:
+            unique.append("tu perfil gastronomico encaja con el estilo de este lugar")
 
-    return ["%s coincide contigo porque:" % restaurant_nombre] + unique[:5]
+    headline = _restaurant_headline(restaurant_nombre, tipo, rest_prefs)
+    return [headline] + unique[:5]
 
 
 def _coincidencias_prefs(user_prefs: dict[str, float], rest_prefs: dict[str, float]) -> list[str]:
@@ -275,9 +402,9 @@ def _coincidencias_prefs(user_prefs: dict[str, float], rest_prefs: dict[str, flo
     out.sort(key=lambda p: -(user_prefs.get(p, 0) * rest_prefs.get(p, 0)))
     return out[:8]
 
-def recomendar_restaurantes_inteligente(usuario_id: str) -> list[dict]:
+def recomendar_restaurantes_inteligente(usuario_id: str, mood: str | None = None) -> list[dict]:
     ensure_preference_catalog()
-    user_prefs = obtener_preferencias_usuario(usuario_id)
+    user_prefs = apply_mood_boost(obtener_preferencias_usuario(usuario_id), mood)
     rest_prefs = _restaurant_preference_vectors()
     similares_map = _similar_users_visits(usuario_id)
 
@@ -291,6 +418,7 @@ def recomendar_restaurantes_inteligente(usuario_id: str) -> list[dict]:
     OPTIONAL MATCH (r)-[:LOCATED_IN]->(zr:Zone)
     OPTIONAL MATCH (r)-[:HAS_CUISINE]->(rc:Cuisine)
     RETURN r.id AS id, r.nombre AS nombre, r.rating AS rating, r.precio AS precio,
+           r.tipo AS tipo, r.descripcion AS descripcion,
            zr.nombre AS zona,
            CASE WHEN zu IS NOT NULL AND zr = zu THEN 1 ELSE 0 END AS misma_zona,
            collect(DISTINCT rc.nombre) AS cocinas
@@ -330,6 +458,8 @@ def recomendar_restaurantes_inteligente(usuario_id: str) -> list[dict]:
             rp,
             misma_zona=bool(misma_zona),
             explorador_score=explorador,
+            tipo=row.get("tipo") or "",
+            descripcion=row.get("descripcion") or "",
         )
         item = dict(row)
         item["cocinas"] = [c for c in (item.get("cocinas") or []) if c]
@@ -388,7 +518,7 @@ def obtener_datos_grafo(focus_user_id=None):
         RETURN labels(a)[0] AS la, properties(a) AS pa,
                labels(b)[0] AS lb, properties(b) AS pb,
                type(r) AS rel, properties(r) AS rprops
-        LIMIT 400
+        LIMIT 650
         """
         params = {"uid": focus_user_id}
     else:
@@ -396,7 +526,7 @@ def obtener_datos_grafo(focus_user_id=None):
         MATCH (n)
         WHERE n:User OR n:Restaurant OR n:Cuisine OR n:Zone OR n:Preference
         RETURN labels(n)[0] AS label, properties(n) AS props
-        LIMIT 120
+        LIMIT 220
         """
         rel_query = """
         MATCH (a)-[r]->(b)
@@ -405,7 +535,7 @@ def obtener_datos_grafo(focus_user_id=None):
         RETURN labels(a)[0] AS la, properties(a) AS pa,
                labels(b)[0] AS lb, properties(b) AS pb,
                type(r) AS rel, properties(r) AS rprops
-        LIMIT 250
+        LIMIT 520
         """
         params = {}
 

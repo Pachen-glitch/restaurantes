@@ -26,11 +26,16 @@ COLORS = {
     "success": "#27AE60",
     "warning": "#F39C12",
     "danger": "#C0392B",
-    "user": "#C0392B",
-    "restaurant": "#E67E22",
-    "cuisine": "#D35400",
-    "zone": "#8B4513",
-    "preference": "#922B21",
+    "user": "#7B241C",
+    "restaurant": "#D4AC0D",
+    "cuisine": "#E67E22",
+    "zone": "#6E2C00",
+    "preference": "#7D3C98",
+    "compat_gold": "#D4AC0D",
+    "compat_orange": "#E67E22",
+    "compat_soft": "#E59866",
+    "hero_overlay": "#FFFAF5",
+    "glow": "#F5B041",
     "card_hover": "#FFF5EB",
     "card_border": "#E8D5C4",
     "card_shadow": "#D7C4B0",
@@ -38,9 +43,17 @@ COLORS = {
     "badge_soft": "#FDEBD0",
     "progress_bg": "#E8D5C4",
     "progress_fill": "#C0392B",
-    "graph_bg": "#FFFAF5",
-    "graph_edge": "#C4A484",
+    "graph_bg": "#1A120B",
+    "graph_edge": "#C49A6C",
 }
+
+def compat_color(pct: float) -> str:
+    if pct >= 90:
+        return COLORS["compat_gold"]
+    if pct >= 70:
+        return COLORS["compat_orange"]
+    return COLORS["compat_soft"]
+
 
 FONTS = {
     "title": ("Segoe UI", 22, "bold"),

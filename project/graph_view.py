@@ -20,9 +20,9 @@ NODE_COLORS = {
 }
 
 BG = COLORS["graph_bg"]
-TEXT = COLORS["text"]
+TEXT = COLORS["text_light"]
 EDGE_COLOR = COLORS["graph_edge"]
-MAX_RESTAURANTS = 35
+MAX_RESTAURANTS = 55
 
 
 class GraphPanel(tk.Frame):
@@ -147,7 +147,7 @@ class GraphPanel(tk.Frame):
             src, tgt = e.get("source"), e.get("target")
             if not src or not tgt or src == tgt:
                 continue
-            g.add_edge(src, tgt, rel=e.get("rel", ""))
+            g.add_edge(src, tgt, rel=e.get("rel", ""), weight=e.get("weight"))
 
         if not g.nodes:
             self.canvas.draw_idle()
@@ -158,13 +158,13 @@ class GraphPanel(tk.Frame):
         pos = {}
         if other_nodes:
             sub = g.subgraph(other_nodes)
-            pos.update(nx.spring_layout(sub, seed=42, k=1.8, iterations=80))
+            pos.update(nx.spring_layout(sub, seed=42, k=2.0, iterations=100))
         if pref_nodes and other_nodes:
             import math
 
             cx = sum(pos[n][0] for n in other_nodes) / len(other_nodes)
             cy = sum(pos[n][1] for n in other_nodes) / len(other_nodes)
-            radius = 1.35
+            radius = 1.85
             for i, nid in enumerate(pref_nodes):
                 angle = 2 * math.pi * i / max(1, len(pref_nodes))
                 pos[nid] = (cx + radius * math.cos(angle), cy + radius * math.sin(angle))
@@ -183,11 +183,11 @@ class GraphPanel(tk.Frame):
             else:
                 colors.append(base)
                 if label == "Preference":
-                    sizes.append(220)
+                    sizes.append(260)
                 elif label in ("User", "Restaurant"):
-                    sizes.append(520)
+                    sizes.append(560)
                 else:
-                    sizes.append(380)
+                    sizes.append(420)
 
         nx.draw_networkx_nodes(
             g,
@@ -195,46 +195,66 @@ class GraphPanel(tk.Frame):
             ax=self.ax,
             node_color=colors,
             node_size=sizes,
-            alpha=0.92,
-            edgecolors=COLORS["card_border"],
-            linewidths=0.8,
+            alpha=0.88,
+            edgecolors=COLORS["glow"],
+            linewidths=1.2,
         )
         nx.draw_networkx_labels(
             g,
             pos,
             labels=labels,
-            font_size=9,
+            font_size=8,
             font_color=TEXT,
             font_family="sans-serif",
             ax=self.ax,
+            bbox={"boxstyle": "round,pad=0.2", "facecolor": "#2C1810", "edgecolor": "none", "alpha": 0.65},
         )
 
-        try:
+        match_edges = [(u, v) for u, v, d in g.edges(data=True) if d.get("rel") == "MATCHES_PREFERENCE"]
+        other_edges = [(u, v) for u, v, d in g.edges(data=True) if d.get("rel") != "MATCHES_PREFERENCE"]
+
+        if other_edges:
+            try:
+                nx.draw_networkx_edges(
+                    g,
+                    pos,
+                    edgelist=other_edges,
+                    ax=self.ax,
+                    edge_color=EDGE_COLOR,
+                    arrows=True,
+                    arrowsize=8,
+                    width=0.8,
+                    alpha=0.35,
+                    connectionstyle="arc3,rad=0.12",
+                    min_source_margin=12,
+                    min_target_margin=12,
+                )
+            except Exception:
+                nx.draw_networkx_edges(
+                    g,
+                    pos,
+                    edgelist=other_edges,
+                    ax=self.ax,
+                    edge_color=EDGE_COLOR,
+                    arrows=False,
+                    width=0.8,
+                    alpha=0.35,
+                )
+
+        if match_edges:
+            # Muchas aristas MATCHES_PREFERENCE: sin flechas ni connectionstyle (mas rapido y sin warnings).
             nx.draw_networkx_edges(
                 g,
                 pos,
+                edgelist=match_edges,
                 ax=self.ax,
-                edge_color=EDGE_COLOR,
-                arrows=True,
-                arrowsize=8,
-                width=0.7,
-                alpha=0.35,
-                connectionstyle="arc3,rad=0.12",
-                min_source_margin=12,
-                min_target_margin=12,
-            )
-        except Exception:
-            nx.draw_networkx_edges(
-                g,
-                pos,
-                ax=self.ax,
-                edge_color=EDGE_COLOR,
+                edge_color=COLORS["accent2"],
                 arrows=False,
-                width=0.7,
-                alpha=0.35,
-                connectionstyle="arc3,rad=0.12",
+                width=0.9,
+                alpha=0.45,
             )
 
+        self.ax.set_title("Mapa de afinidades culinarias", color=TEXT, fontsize=11, pad=12, alpha=0.9)
         legend_items = [
             Patch(facecolor=NODE_COLORS["User"], label="Usuario", edgecolor="none"),
             Patch(facecolor=NODE_COLORS["Restaurant"], label="Restaurante", edgecolor="none"),
@@ -247,8 +267,8 @@ class GraphPanel(tk.Frame):
             loc="upper right",
             fontsize=8,
             framealpha=0.9,
-            facecolor=COLORS["surface2"],
-            edgecolor=COLORS["card_border"],
+            facecolor="#2C1810",
+            edgecolor=COLORS["graph_edge"],
             labelcolor=TEXT,
         )
 

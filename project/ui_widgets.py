@@ -5,7 +5,8 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
-from styles import COLORS, FONTS
+from styles import COLORS, FONTS, compat_color
+from ui_animations import bind_hover_glow
 
 
 class ShadowCard(tk.Frame):
@@ -132,8 +133,22 @@ class CompatibilityBar(tk.Frame):
         self._fill.place(relx=0, rely=0, relheight=1, relwidth=fill_w / 100.0)
 
 
+class CompatRing(tk.Canvas):
+    """Anillo de compatibilidad premium."""
+
+    def __init__(self, master, pct: float = 0, size: int = 72, **kwargs):
+        super().__init__(master, width=size, height=size, bg=COLORS["surface2"], highlightthickness=0, **kwargs)
+        self.pct = max(0.0, min(100.0, float(pct)))
+        color = compat_color(self.pct)
+        pad = 6
+        self.create_oval(pad, pad, size - pad, size - pad, outline=COLORS["progress_bg"], width=8)
+        extent = max(1, int(360 * self.pct / 100))
+        self.create_arc(pad, pad, size - pad, size - pad, start=90, extent=-extent, outline=color, width=8, style=tk.ARC)
+        self.create_text(size // 2, size // 2, text="%.0f%%" % self.pct, fill=color, font=("Segoe UI", 11, "bold"))
+
+
 class RestaurantCard(tk.Frame):
-    """Tarjeta premium de restaurante recomendado."""
+    """Tarjeta premium estilo app foodie."""
 
     CUISINE_EMOJI = {
         "Japonesa": "🍣",
@@ -146,115 +161,114 @@ class RestaurantCard(tk.Frame):
         "Steakhouse": "🥩",
         "Mariscos": "🦐",
         "Cafe": "☕",
+        "Francesa": "🥐",
+        "Peruana": "🌶️",
+        "Saludable": "🥗",
+        "Fusion": "✨",
+        "Asiatica": "🥢",
     }
 
-    def __init__(
-        self,
-        master,
-        data: dict,
-        pref_labels: dict | None = None,
-        on_select=None,
-        **kwargs,
-    ):
-        super().__init__(master, bg=COLORS["bg"], **kwargs)
-        self._data = data
-        self._on_select = on_select
-        pref_labels = pref_labels or {}
+    GRADIENT_BANDS = ("#922B21", "#C0392B", "#E67E22", "#F5B041", "#FDEBD0")
 
-        shadow = ShadowCard(self, padx=18, pady=16, shadow=3)
+    def __init__(self, master, data: dict, pref_labels: dict | None = None, on_select=None, **kwargs):
+        super().__init__(master, bg=COLORS["bg"], **kwargs)
+        pref_labels = pref_labels or {}
+        shadow = ShadowCard(self, padx=0, pady=0, shadow=4)
         shadow.pack(fill=tk.BOTH, expand=True)
         card = shadow.content()
+        bind_hover_glow(card, COLORS["card_border"], COLORS["glow"])
 
         cocinas = data.get("cocinas") or []
         emoji = self.CUISINE_EMOJI.get(cocinas[0] if cocinas else "", "🍽️")
         precio = int(data.get("precio") or 0)
         tier = _price_tier(precio)
         compat = float(data.get("compatibilidad_pct") or data.get("score_total") or 0)
+        compat_c = compat_color(compat)
 
-        header = tk.Frame(card, bg=COLORS["surface2"])
-        header.pack(fill=tk.X)
-        tk.Label(header, text=emoji, font=("Segoe UI", 28), bg=COLORS["surface2"]).pack(side=tk.LEFT, padx=(0, 12))
-        title_box = tk.Frame(header, bg=COLORS["surface2"])
-        title_box.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        hero = tk.Canvas(card, height=96, highlightthickness=0, bd=0, bg=COLORS["surface2"])
+        hero.pack(fill=tk.X)
+        hero.bind("<Configure>", lambda e, c=hero, em=emoji: self._draw_hero(c, em))
+
+        body = tk.Frame(card, bg=COLORS["surface2"], padx=18, pady=14)
+        body.pack(fill=tk.X)
+
+        top = tk.Frame(body, bg=COLORS["surface2"])
+        top.pack(fill=tk.X)
+        info = tk.Frame(top, bg=COLORS["surface2"])
+        info.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        tk.Label(info, text=data.get("nombre") or "Restaurante", font=FONTS["card_title"], fg=COLORS["text"], bg=COLORS["surface2"], anchor=tk.W).pack(fill=tk.X)
         tk.Label(
-            title_box,
-            text=data.get("nombre") or "Restaurante",
-            font=FONTS["card_title"],
-            fg=COLORS["text"],
-            bg=COLORS["surface2"],
-            anchor=tk.W,
-        ).pack(fill=tk.X)
-        meta = "📍 %s   ⭐ %.1f   💰 %s" % (
-            data.get("zona") or "—",
-            float(data.get("rating") or 0),
-            tier,
-        )
-        tk.Label(
-            title_box,
-            text=meta,
+            info,
+            text="📍 %s   ⭐ %.1f   💎 %s" % (data.get("zona") or "—", float(data.get("rating") or 0), tier),
             font=FONTS["small"],
             fg=COLORS["subtext"],
             bg=COLORS["surface2"],
             anchor=tk.W,
         ).pack(fill=tk.X, pady=(4, 0))
+        CompatRing(top, pct=compat).pack(side=tk.RIGHT, padx=(8, 0))
 
-        badge = tk.Label(
-            header,
-            text="🔥 %.0f%%" % compat,
+        tk.Label(
+            body,
+            text="🔥 %.0f%% compatible" % compat,
             font=FONTS["badge"],
             fg=COLORS["text_light"],
-            bg=COLORS["accent"],
+            bg=compat_c,
             padx=10,
-            pady=4,
-        )
-        badge.pack(side=tk.RIGHT)
+            pady=3,
+        ).pack(anchor=tk.W, pady=(10, 8))
 
-        CompatibilityBar(card, pct=compat).pack(fill=tk.X, pady=(12, 8))
+        CompatibilityBar(body, pct=compat).pack(fill=tk.X, pady=(0, 10))
 
-        tags_frame = tk.Frame(card, bg=COLORS["surface2"])
-        tags_frame.pack(fill=tk.X, pady=(0, 8))
-        coincidencias = (data.get("coincidencias") or [])[:4]
-        if coincidencias:
-            for pref in coincidencias:
-                label = pref_labels.get(pref, pref.replace("_", " "))
-                tk.Label(
-                    tags_frame,
-                    text="  %s  " % label,
-                    font=FONTS["badge"],
-                    fg=COLORS["subtext"],
-                    bg=COLORS["badge_soft"],
-                    padx=4,
-                    pady=2,
-                ).pack(side=tk.LEFT, padx=(0, 6), pady=2)
-
+        desc = (data.get("descripcion") or "").strip()
         lines = data.get("explicacion") or []
+        quote = ""
         if len(lines) > 1:
+            quote = lines[1]
+        elif desc:
+            quote = desc
+        if quote:
             tk.Label(
-                card,
-                text=lines[0],
-                font=FONTS["small"],
-                fg=COLORS["accent"],
+                body,
+                text="“%s”" % quote[:160],
+                font=FONTS["body"],
+                fg=COLORS["text"],
                 bg=COLORS["surface2"],
-                anchor=tk.W,
-            ).pack(fill=tk.X, pady=(4, 2))
-            for line in lines[1:4]:
-                tk.Label(
-                    card,
-                    text="• " + line,
-                    font=FONTS["small"],
-                    fg=COLORS["muted"],
-                    bg=COLORS["surface2"],
-                    anchor=tk.W,
-                    wraplength=520,
-                    justify=tk.LEFT,
-                ).pack(fill=tk.X, padx=(8, 0))
+                wraplength=620,
+                justify=tk.LEFT,
+            ).pack(fill=tk.X, pady=(0, 8))
 
-        card.bind("<Enter>", lambda _e: card.configure(highlightbackground=COLORS["accent2"]))
-        card.bind("<Leave>", lambda _e: card.configure(highlightbackground=COLORS["card_border"]))
+        tags = tk.Frame(body, bg=COLORS["surface2"])
+        tags.pack(fill=tk.X)
+        coincidencias = (data.get("coincidencias") or [])[:5]
+        for pref in coincidencias:
+            label = pref_labels.get(pref, pref.replace("_", " ").title())
+            tk.Label(
+                tags,
+                text="#%s" % label.replace(" ", ""),
+                font=FONTS["badge"],
+                fg=COLORS["subtext"],
+                bg=COLORS["badge_soft"],
+                padx=6,
+                pady=2,
+            ).pack(side=tk.LEFT, padx=(0, 6), pady=2)
+        if cocinas:
+            tk.Label(tags, text="#%s" % cocinas[0], font=FONTS["badge"], fg=COLORS["accent"], bg=COLORS["accent_light"], padx=6, pady=2).pack(
+                side=tk.LEFT, padx=(0, 6)
+            )
+
         if on_select:
             card.bind("<Button-1>", lambda _e: on_select(data))
-            for child in card.winfo_children():
-                child.bind("<Button-1>", lambda _e: on_select(data))
+
+    def _draw_hero(self, canvas: tk.Canvas, emoji: str) -> None:
+        canvas.delete("all")
+        w = max(canvas.winfo_width(), 200)
+        h = max(canvas.winfo_height(), 80)
+        steps = len(self.GRADIENT_BANDS)
+        band = max(1, w // steps)
+        for i, color in enumerate(self.GRADIENT_BANDS):
+            canvas.create_rectangle(i * band, 0, (i + 1) * band + 1, h, fill=color, outline=color)
+        canvas.create_text(w // 2, h // 2, text=emoji, font=("Segoe UI", 36))
+        canvas.create_rectangle(0, h - 28, w, h, fill=COLORS["surface2"], outline=COLORS["surface2"])
 
 
 def _price_tier(precio: int) -> str:
@@ -276,10 +290,11 @@ class Sidebar(tk.Frame):
 
     NAV_ITEMS = [
         ("home", "🏠", "Inicio"),
-        ("profile", "👤", "Perfil"),
         ("rec", "✨", "Recomendador"),
+        ("profile", "🧬", "ADN Gastronómico"),
+        ("insights", "📊", "Insights"),
         ("onboarding", "🧠", "Onboarding"),
-        ("graph", "📈", "Grafo"),
+        ("graph", "🌐", "Grafo"),
         ("settings", "⚙️", "Config"),
     ]
 
@@ -334,7 +349,8 @@ class Sidebar(tk.Frame):
             btn.bind("<Leave>", lambda _e, b=btn, k=key: self._leave(b, k))
             self._buttons[key] = btn
 
-        self.set_active("home")
+        self.set_active("home", navigate=False)
+
 
     def _hover(self, btn, key):
         if key != self._active:
@@ -344,11 +360,12 @@ class Sidebar(tk.Frame):
         if key != self._active:
             btn.configure(bg=COLORS["sidebar"])
 
-    def set_active(self, key: str):
+    def set_active(self, key: str, navigate: bool = True):
         self._active = key
         for k, btn in self._buttons.items():
             if k == key:
                 btn.configure(bg=COLORS["sidebar_active"], font=("Segoe UI", 11, "bold"))
             else:
                 btn.configure(bg=COLORS["sidebar"], font=FONTS["nav"])
-        self._on_navigate(key)
+        if navigate:
+            self._on_navigate(key)
