@@ -8,6 +8,65 @@ from tkinter import ttk
 from styles import COLORS, FONTS
 
 
+class ShadowCard(tk.Frame):
+    """Contenedor con sombra suave y borde redondeado simulado."""
+
+    def __init__(self, master, padx=24, pady=20, shadow=3, **kwargs):
+        bg = kwargs.pop("bg", COLORS["surface2"])
+        super().__init__(master, bg=COLORS["card_shadow"], **kwargs)
+        self.inner = tk.Frame(
+            self,
+            bg=bg,
+            highlightbackground=COLORS["card_border"],
+            highlightthickness=1,
+            padx=padx,
+            pady=pady,
+        )
+        self.inner.pack(fill=tk.BOTH, expand=True, padx=shadow, pady=shadow)
+
+    def content(self) -> tk.Frame:
+        return self.inner
+
+
+class HomeCard(tk.Frame):
+    """Tarjeta de accion rapida para la pantalla de inicio."""
+
+    def __init__(self, master, icon: str, title: str, description: str, action: str, command, **kwargs):
+        super().__init__(master, bg=COLORS["bg"], **kwargs)
+        self._shadow = ShadowCard(self, padx=22, pady=20, shadow=4)
+        self._shadow.pack(fill=tk.BOTH, expand=True)
+
+        card = self._shadow.content()
+        tk.Label(card, text=icon, font=("Segoe UI", 30), bg=COLORS["surface2"]).pack(anchor=tk.W)
+        tk.Label(
+            card,
+            text=title,
+            font=FONTS["card_title"],
+            fg=COLORS["text"],
+            bg=COLORS["surface2"],
+        ).pack(anchor=tk.W, pady=(10, 6))
+        tk.Label(
+            card,
+            text=description,
+            font=FONTS["small"],
+            fg=COLORS["muted"],
+            bg=COLORS["surface2"],
+            wraplength=260,
+            justify=tk.LEFT,
+        ).pack(anchor=tk.W, pady=(0, 16))
+        ttk.Button(card, text=action, style="Accent.TButton", command=command).pack(anchor=tk.W)
+
+        for widget in (self, card):
+            widget.bind("<Enter>", self._on_enter)
+            widget.bind("<Leave>", self._on_leave)
+
+    def _on_enter(self, _event=None):
+        self._shadow.inner.configure(highlightbackground=COLORS["accent2"])
+
+    def _on_leave(self, _event=None):
+        self._shadow.inner.configure(highlightbackground=COLORS["card_border"])
+
+
 class ScrollableFrame(ttk.Frame):
     """Contenedor con scroll vertical para listas de cards."""
 
@@ -97,18 +156,14 @@ class RestaurantCard(tk.Frame):
         on_select=None,
         **kwargs,
     ):
-        super().__init__(
-            master,
-            bg=COLORS["surface2"],
-            highlightbackground=COLORS["card_border"],
-            highlightthickness=1,
-            padx=18,
-            pady=16,
-            **kwargs,
-        )
+        super().__init__(master, bg=COLORS["bg"], **kwargs)
         self._data = data
         self._on_select = on_select
         pref_labels = pref_labels or {}
+
+        shadow = ShadowCard(self, padx=18, pady=16, shadow=3)
+        shadow.pack(fill=tk.BOTH, expand=True)
+        card = shadow.content()
 
         cocinas = data.get("cocinas") or []
         emoji = self.CUISINE_EMOJI.get(cocinas[0] if cocinas else "", "🍽️")
@@ -116,7 +171,7 @@ class RestaurantCard(tk.Frame):
         tier = _price_tier(precio)
         compat = float(data.get("compatibilidad_pct") or data.get("score_total") or 0)
 
-        header = tk.Frame(self, bg=COLORS["surface2"])
+        header = tk.Frame(card, bg=COLORS["surface2"])
         header.pack(fill=tk.X)
         tk.Label(header, text=emoji, font=("Segoe UI", 28), bg=COLORS["surface2"]).pack(side=tk.LEFT, padx=(0, 12))
         title_box = tk.Frame(header, bg=COLORS["surface2"])
@@ -154,9 +209,9 @@ class RestaurantCard(tk.Frame):
         )
         badge.pack(side=tk.RIGHT)
 
-        CompatibilityBar(self, pct=compat).pack(fill=tk.X, pady=(12, 8))
+        CompatibilityBar(card, pct=compat).pack(fill=tk.X, pady=(12, 8))
 
-        tags_frame = tk.Frame(self, bg=COLORS["surface2"])
+        tags_frame = tk.Frame(card, bg=COLORS["surface2"])
         tags_frame.pack(fill=tk.X, pady=(0, 8))
         coincidencias = (data.get("coincidencias") or [])[:4]
         if coincidencias:
@@ -175,7 +230,7 @@ class RestaurantCard(tk.Frame):
         lines = data.get("explicacion") or []
         if len(lines) > 1:
             tk.Label(
-                self,
+                card,
                 text=lines[0],
                 font=FONTS["small"],
                 fg=COLORS["accent"],
@@ -184,7 +239,7 @@ class RestaurantCard(tk.Frame):
             ).pack(fill=tk.X, pady=(4, 2))
             for line in lines[1:4]:
                 tk.Label(
-                    self,
+                    card,
                     text="• " + line,
                     font=FONTS["small"],
                     fg=COLORS["muted"],
@@ -194,11 +249,11 @@ class RestaurantCard(tk.Frame):
                     justify=tk.LEFT,
                 ).pack(fill=tk.X, padx=(8, 0))
 
-        self.bind("<Enter>", lambda _e: self.configure(bg=COLORS["card_hover"], highlightbackground=COLORS["accent2"]))
-        self.bind("<Leave>", lambda _e: self.configure(bg=COLORS["surface2"], highlightbackground=COLORS["card_border"]))
+        card.bind("<Enter>", lambda _e: card.configure(highlightbackground=COLORS["accent2"]))
+        card.bind("<Leave>", lambda _e: card.configure(highlightbackground=COLORS["card_border"]))
         if on_select:
-            self.bind("<Button-1>", lambda _e: on_select(data))
-            for child in self.winfo_children():
+            card.bind("<Button-1>", lambda _e: on_select(data))
+            for child in card.winfo_children():
                 child.bind("<Button-1>", lambda _e: on_select(data))
 
 
@@ -217,44 +272,50 @@ def _price_tier(precio: int) -> str:
 
 
 class Sidebar(tk.Frame):
-    """Barra lateral de navegacion."""
+    """Barra lateral de navegacion premium."""
 
     NAV_ITEMS = [
         ("home", "🏠", "Inicio"),
         ("profile", "👤", "Perfil"),
-        ("rec", "🍽️", "Recomendador"),
+        ("rec", "✨", "Recomendador"),
         ("onboarding", "🧠", "Onboarding"),
         ("graph", "📈", "Grafo"),
         ("settings", "⚙️", "Config"),
     ]
 
     def __init__(self, master, on_navigate, **kwargs):
-        super().__init__(master, bg=COLORS["sidebar"], width=220, **kwargs)
+        super().__init__(master, bg=COLORS["sidebar"], width=232, **kwargs)
         self.pack_propagate(False)
         self._on_navigate = on_navigate
         self._buttons: dict[str, tk.Button] = {}
         self._active = "home"
 
+        brand = tk.Frame(self, bg=COLORS["sidebar"], pady=28)
+        brand.pack(fill=tk.X, padx=20)
         tk.Label(
-            self,
+            brand,
             text="🍷 Savory",
-            font=("Segoe UI", 18, "bold"),
+            font=("Segoe UI", 20, "bold"),
             fg=COLORS["text_light"],
             bg=COLORS["sidebar"],
-            pady=24,
-        ).pack(fill=tk.X)
+        ).pack(anchor=tk.W)
         tk.Label(
-            self,
+            brand,
             text="Guatemala City",
             font=FONTS["small"],
             fg=COLORS["muted"],
             bg=COLORS["sidebar"],
-        ).pack(fill=tk.X, pady=(0, 20))
+        ).pack(anchor=tk.W, pady=(4, 0))
+
+        tk.Frame(self, bg=COLORS["sidebar_hover"], height=1).pack(fill=tk.X, padx=16, pady=(0, 12))
+
+        nav_box = tk.Frame(self, bg=COLORS["sidebar"])
+        nav_box.pack(fill=tk.BOTH, expand=True, padx=10)
 
         for key, icon, label in self.NAV_ITEMS:
             btn = tk.Button(
-                self,
-                text="%s  %s" % (icon, label),
+                nav_box,
+                text="%s   %s" % (icon, label),
                 font=FONTS["nav"],
                 fg=COLORS["text_light"],
                 bg=COLORS["sidebar"],
@@ -262,13 +323,13 @@ class Sidebar(tk.Frame):
                 activeforeground=COLORS["text_light"],
                 relief=tk.FLAT,
                 anchor=tk.W,
-                padx=20,
-                pady=12,
+                padx=18,
+                pady=13,
                 borderwidth=0,
                 cursor="hand2",
                 command=lambda k=key: self.set_active(k),
             )
-            btn.pack(fill=tk.X, padx=8, pady=2)
+            btn.pack(fill=tk.X, pady=3)
             btn.bind("<Enter>", lambda _e, b=btn, k=key: self._hover(b, k))
             btn.bind("<Leave>", lambda _e, b=btn, k=key: self._leave(b, k))
             self._buttons[key] = btn

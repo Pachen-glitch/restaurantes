@@ -61,6 +61,16 @@ PREFERENCE_CATALOG = [
     "business_dining",
     "pref_coreana",
     "pref_mediterranea",
+    "tapas_style",
+    "main_dish_focus",
+    "ingredient_quality",
+    "cocktail_focus",
+    "location_focus",
+    "celebrate",
+    "presentation_focus",
+    "flavor_focus",
+    "service_focus",
+    "price_focus",
 ]
 
 PRESUPUESTO_RANGOS = {

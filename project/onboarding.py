@@ -1,4 +1,4 @@
-"""Wizard de onboarding gastronomico inmersivo (7 pasos, auto-avance)."""
+"""Wizard de onboarding gastronomico inmersivo (15 pasos, auto-avance)."""
 
 from __future__ import annotations
 
@@ -9,101 +9,172 @@ from styles import COLORS, FONTS
 
 ONBOARDING_STEPS = [
     {
-        "id": "estilo",
-        "title": "Estilo gastronómico",
-        "subtitle": "¿Qué buscas normalmente cuando sales a comer?",
+        "id": "base",
+        "title": "Base de tus comidas",
+        "subtitle": "¿Cuál prefieres como base de tus comidas?",
         "options": [
-            {"text": "Comfort food", "weights": {"comfort_food": 5, "casual": 3, "slow_food": 2}},
-            {"text": "Experiencia gourmet", "weights": {"gourmet": 5, "premium": 4, "elegant": 3}},
-            {"text": "Algo rápido", "weights": {"comida_rapida": 5, "fast_service": 4, "fast_food": 3}},
-            {"text": "Algo trendy", "weights": {"trendy": 5, "moderno": 4, "aesthetic": 3}},
-            {"text": "Lugar para conversar", "weights": {"tranquil": 5, "intimate": 4, "slow_food": 3}},
-            {"text": "Lugar aesthetic", "weights": {"aesthetic": 5, "trendy": 4, "brunch": 2}},
-            {"text": "Algo para compartir", "weights": {"social_grupo": 5, "comfort_food": 3, "lively": 2}},
-            {"text": "Algo práctico", "weights": {"fast_service": 5, "comida_rapida": 4, "equilibrado": 2}},
+            {"text": "Carne", "weights": {"contundente": 5, "premium": 2}},
+            {"text": "Mariscos", "weights": {"sabor_fresco": 5, "pref_mediterranea": 2}},
+            {"text": "Verduras", "weights": {"saludable": 5, "sabor_fresco": 3}},
+        ],
+    },
+    {
+        "id": "grupos",
+        "title": "Grupos de comida",
+        "subtitle": "¿Prefieres comer dentro de alguno de estos grupos?",
+        "card_layout": True,
+        "options": [
+            {"text": "Pasta", "emoji": "🍝", "weights": {"pref_italiana": 5, "slow_food": 3}},
+            {"text": "BBQ", "emoji": "🔥", "weights": {"smoky": 5, "contundente": 4, "social_grupo": 2}},
+            {"text": "Sushi", "emoji": "🍣", "weights": {"pref_japonesa": 5, "gourmet": 3}},
+            {"text": "Restaurante casual", "emoji": "🍽️", "weights": {"casual": 5, "equilibrado": 3}},
+            {"text": "Fast food", "emoji": "🍔", "weights": {"fast_food": 5, "comida_rapida": 4}},
+        ],
+    },
+    {
+        "id": "proteina",
+        "title": "Tipo de proteína",
+        "subtitle": "¿Prefieres comer carne de res, cerdo, pollo o mariscos?",
+        "options": [
+            {"text": "Res", "weights": {"contundente": 5, "premium": 3}},
+            {"text": "Cerdo", "weights": {"contundente": 4, "comfort_food": 3}},
+            {"text": "Pollo", "weights": {"equilibrado": 4, "saludable": 3, "casual": 2}},
+            {"text": "Mariscos", "weights": {"sabor_fresco": 5, "pref_mediterranea": 3}},
+        ],
+    },
+    {
+        "id": "tierra_mar",
+        "title": "Tierra o mar",
+        "subtitle": "¿Prefieres comer carne o mariscos?",
+        "options": [
+            {"text": "Carne", "weights": {"contundente": 5, "smoky": 3}},
+            {"text": "Mariscos", "weights": {"sabor_fresco": 5, "saludable": 2}},
+            {"text": "Ambos por igual", "weights": {"equilibrado": 5, "explorador": 3}},
+        ],
+    },
+    {
+        "id": "coccion",
+        "title": "Punto de la carne",
+        "subtitle": "¿Prefieres la carne…?",
+        "options": [
+            {"text": "Bien cocida", "weights": {"tradicional": 4, "comfort_food": 3}},
+            {"text": "Término medio", "weights": {"equilibrado": 5, "premium": 2}},
+            {"text": "Jugosa / poco cocida", "weights": {"gourmet": 4, "premium": 4, "contundente": 2}},
+        ],
+    },
+    {
+        "id": "cocinas",
+        "title": "Cocinas del mundo",
+        "subtitle": "¿Qué tipo de comida prefieres?",
+        "card_layout": True,
+        "options": [
+            {"text": "Italiana", "emoji": "🍝", "weights": {"pref_italiana": 5, "slow_food": 2}},
+            {"text": "Japonesa", "emoji": "🍣", "weights": {"pref_japonesa": 5, "sabor_umami": 3}},
+            {"text": "Mexicana", "emoji": "🌮", "weights": {"street_food": 4, "spicy": 4, "pref_guatemalteca": 2}},
+            {"text": "Americana", "emoji": "🍔", "weights": {"comfort_food": 4, "fast_food": 3, "casual": 2}},
+            {"text": "Coreana", "emoji": "🇰🇷", "weights": {"pref_coreana": 5, "spicy": 3}},
+            {"text": "Tailandesa", "emoji": "🌶️", "weights": {"spicy": 5, "explorador": 3, "sabor_fresco": 2}},
+            {"text": "Mediterránea", "emoji": "🫒", "weights": {"pref_mediterranea": 5, "saludable": 3}},
+            {"text": "Guatemalteca", "emoji": "🇬🇹", "weights": {"pref_guatemalteca": 5, "tradicional": 4}},
+            {"text": "Francesa", "emoji": "🥐", "weights": {"gourmet": 5, "elegant": 4, "premium": 2}},
+        ],
+    },
+    {
+        "id": "formato",
+        "title": "Formato del menú",
+        "subtitle": "¿Prefieres restaurantes con platos para compartir o con platos principales?",
+        "options": [
+            {"text": "Platos para compartir", "weights": {"social_grupo": 5, "lively": 3, "tapas_style": 4}},
+            {"text": "Platos principales", "weights": {"main_dish_focus": 5, "elegant": 2}},
+            {"text": "Me da igual", "weights": {"equilibrado": 4, "casual": 3}},
+        ],
+    },
+    {
+        "id": "ingredientes",
+        "title": "Calidad de ingredientes",
+        "subtitle": "¿Te importa la calidad de los ingredientes?",
+        "options": [
+            {"text": "Es lo más importante", "weights": {"gourmet": 5, "premium": 4, "ingredient_quality": 5}},
+            {"text": "Importa, pero sin obsesión", "weights": {"equilibrado": 5, "ingredient_quality": 3}},
+            {"text": "No es prioridad", "weights": {"ahorrador": 4, "fast_food": 3, "casual": 2}},
+        ],
+    },
+    {
+        "id": "ambiente",
+        "title": "Ambiente del lugar",
+        "subtitle": "¿Cómo prefieres que sea el ambiente del restaurante?",
+        "options": [
+            {"text": "Romántico", "weights": {"romantic": 5, "intimate": 4, "elegant": 2}},
+            {"text": "Casual", "weights": {"casual": 5, "comfort_food": 3}},
+            {"text": "Trendy", "weights": {"trendy": 5, "aesthetic": 4, "moderno": 3}},
+            {"text": "Familiar", "weights": {"family_friendly": 5, "social_familia": 4}},
+            {"text": "Exclusivo", "weights": {"exclusive": 5, "premium": 4, "gourmet": 2}},
+        ],
+    },
+    {
+        "id": "bebidas",
+        "title": "Bebidas",
+        "subtitle": "¿Prefieres acompañar tu comida con vino, cerveza o cócteles?",
+        "options": [
+            {"text": "Vino", "weights": {"wine_focus": 5, "elegant": 3, "gourmet": 2}},
+            {"text": "Cerveza", "weights": {"craft_beer": 5, "casual": 3, "lively": 2}},
+            {"text": "Cócteles", "weights": {"cocktail_focus": 5, "trendy": 3, "nightlife": 2}},
+            {"text": "No me importa", "weights": {"equilibrado": 4, "casual": 2}},
         ],
     },
     {
         "id": "exploracion",
-        "title": "Exploración",
-        "subtitle": "¿Qué tan dispuesto estás a probar lugares nuevos?",
+        "title": "Probar cosas nuevas",
+        "subtitle": "¿Prefieres restaurantes donde puedas probar cosas nuevas?",
         "options": [
-            {"text": "Voy siempre a los mismos lugares", "weights": {"rutinero": 5, "tradicional": 4}},
-            {"text": "A veces pruebo algo nuevo", "weights": {"equilibrado": 5, "explorador": 2}},
-            {"text": "Me gusta descubrir restaurantes", "weights": {"explorador": 5, "aventurero": 4, "trendy": 2}},
-            {"text": "Busco constantemente experiencias nuevas", "weights": {"explorador": 5, "aventurero": 5, "moderno": 4}},
-        ],
-    },
-    {
-        "id": "social",
-        "title": "Contexto social",
-        "subtitle": "¿Cómo suelen ser tus salidas?",
-        "options": [
-            {"text": "Solo", "weights": {"social_solo": 5, "tranquil": 3, "intimate": 2}},
-            {"text": "Pareja", "weights": {"social_pareja": 5, "romantic": 4, "intimate": 3}},
-            {"text": "Amigos", "weights": {"social_grupo": 5, "lively": 4, "nightlife": 2}},
-            {"text": "Familia", "weights": {"social_familia": 5, "family_friendly": 4, "comfort_food": 2}},
-            {"text": "Trabajo / reuniones", "weights": {"business_dining": 5, "elegant": 3, "fast_service": 2}},
-        ],
-    },
-    {
-        "id": "energia",
-        "title": "Energía del lugar",
-        "subtitle": "¿Qué ambiente disfrutas más?",
-        "options": [
-            {"text": "Tranquilo", "weights": {"tranquil": 5, "slow_food": 3, "intimate": 2}},
-            {"text": "Elegante", "weights": {"elegant": 5, "gourmet": 3, "premium": 3}},
-            {"text": "Casual", "weights": {"casual": 5, "comfort_food": 3, "equilibrado": 2}},
-            {"text": "Ruidoso / social", "weights": {"lively": 5, "social_grupo": 4, "nightlife": 3}},
-            {"text": "Moderno", "weights": {"moderno": 5, "trendy": 4, "aesthetic": 2}},
-            {"text": "Exclusivo", "weights": {"exclusive": 5, "premium": 4, "gourmet": 3}},
-        ],
-    },
-    {
-        "id": "sabores",
-        "title": "Intensidad de sabores",
-        "subtitle": "¿Qué perfil de sabor te representa mejor?",
-        "options": [
-            {"text": "Suave", "weights": {"sabor_fresco": 5, "balanced_flavor": 4, "saludable": 2}},
-            {"text": "Balanceado", "weights": {"equilibrado": 5, "balanced_flavor": 4}},
-            {"text": "Intenso", "weights": {"intense_flavor": 5, "sabor_umami": 4, "contundente": 2}},
-            {"text": "Picante", "weights": {"sabor_picante": 5, "spicy": 5}},
-            {"text": "Ahumado", "weights": {"smoky": 5, "contundente": 4, "premium": 2}},
-            {"text": "Dulce / salado", "weights": {"sabor_dulce": 4, "sabor_salado": 4, "dessert_focus": 3}},
+            {"text": "Siempre quiero novedad", "weights": {"explorador": 5, "aventurero": 5, "moderno": 3}},
+            {"text": "A veces", "weights": {"equilibrado": 5, "explorador": 2}},
+            {"text": "Prefiero lo conocido", "weights": {"rutinero": 5, "tradicional": 4, "comfort_food": 2}},
         ],
     },
     {
         "id": "presupuesto",
         "title": "Presupuesto",
-        "subtitle": "¿Cuánto sueles invertir por persona en una salida?",
+        "subtitle": "¿Cuánto gastas normalmente por persona?",
         "options": [
-            {"text": "Prefiero comer en casa", "rango": "en_casa", "weights": {"home_dining": 5, "comfort_food": 3, "ahorrador": 4}},
-            {"text": "Q50 – Q150", "rango": "q50_150", "weights": {"ahorrador": 5, "casual": 3, "street_food": 2}},
-            {"text": "Q150 – Q300", "rango": "q150_300", "weights": {"equilibrado": 5, "casual": 2}},
+            {"text": "Prefiero comer en casa", "rango": "en_casa", "weights": {"home_dining": 5, "ahorrador": 4}},
+            {"text": "Q50 – Q150", "rango": "q50_150", "weights": {"ahorrador": 5, "street_food": 3, "casual": 2}},
+            {"text": "Q150 – Q300", "rango": "q150_300", "weights": {"equilibrado": 5, "casual": 3}},
             {"text": "Q300 – Q600", "rango": "q300_600", "weights": {"equilibrado": 4, "indulgente": 3}},
             {"text": "Q600 – Q1000", "rango": "q600_1000", "weights": {"premium": 4, "gourmet": 3}},
-            {"text": "Q1000 – Q2000", "rango": "q1000_2000", "weights": {"premium": 5, "exclusive": 4, "gourmet": 3}},
+            {"text": "Q1000 – Q2000", "rango": "q1000_2000", "weights": {"premium": 5, "exclusive": 3, "gourmet": 3}},
             {"text": "Más de Q2000", "rango": "mas_2000", "weights": {"exclusive": 5, "indulgente": 4, "premium": 4}},
         ],
     },
     {
-        "id": "comida",
-        "title": "Preferencias reales",
-        "subtitle": "¿Qué escogerías AHORA MISMO?",
-        "card_layout": True,
+        "id": "ubicacion",
+        "title": "Ubicación",
+        "subtitle": "¿Te importa la ubicación del restaurante?",
         "options": [
-            {"text": "Sushi premium", "emoji": "🍣", "weights": {"pref_japonesa": 5, "gourmet": 4, "premium": 3}},
-            {"text": "Ramen", "emoji": "🍜", "weights": {"pref_japonesa": 5, "sabor_umami": 4, "comfort_food": 2}},
-            {"text": "Tacos callejeros", "emoji": "🌮", "weights": {"street_food": 5, "pref_guatemalteca": 4}},
-            {"text": "Pizza artesanal", "emoji": "🍕", "weights": {"pref_italiana": 5, "casual": 3}},
-            {"text": "Steakhouse", "emoji": "🥩", "weights": {"contundente": 5, "premium": 4, "smoky": 3}},
-            {"text": "Café & brunch", "emoji": "☕", "weights": {"brunch": 5, "aesthetic": 4, "trendy": 2}},
-            {"text": "Burgers gourmet", "emoji": "🍔", "weights": {"comfort_food": 4, "moderno": 3, "casual": 3}},
-            {"text": "Parrillada", "emoji": "🔥", "weights": {"contundente": 5, "smoky": 4, "social_grupo": 2}},
-            {"text": "Pasta cremosa", "emoji": "🍝", "weights": {"pref_italiana": 5, "slow_food": 3, "comfort_food": 2}},
-            {"text": "Poke bowl", "emoji": "🥙", "weights": {"saludable": 5, "sabor_fresco": 4, "pref_japonesa": 2}},
-            {"text": "Comida coreana", "emoji": "🇰🇷", "weights": {"pref_coreana": 5, "spicy": 3, "explorador": 2}},
-            {"text": "Comida mediterránea", "emoji": "🫒", "weights": {"pref_mediterranea": 5, "sabor_fresco": 3, "saludable": 2}},
+            {"text": "Muy importante", "weights": {"location_focus": 5, "fast_service": 2}},
+            {"text": "Importante", "weights": {"location_focus": 3, "equilibrado": 3}},
+            {"text": "No es prioridad", "weights": {"explorador": 3, "indulgente": 2, "equilibrado": 2}},
+        ],
+    },
+    {
+        "id": "proposito",
+        "title": "Propósito de la salida",
+        "subtitle": "¿Prefieres comer para socializar, trabajar o celebrar?",
+        "options": [
+            {"text": "Socializar", "weights": {"social_grupo": 5, "lively": 4, "casual": 2}},
+            {"text": "Trabajar", "weights": {"business_dining": 5, "tranquil": 3, "fast_service": 2}},
+            {"text": "Celebrar", "weights": {"celebrate": 5, "premium": 3, "elegant": 3, "social_grupo": 2}},
+        ],
+    },
+    {
+        "id": "prioridad",
+        "title": "Tu prioridad",
+        "subtitle": "¿Qué te importa más en tu experiencia gastronómica?",
+        "options": [
+            {"text": "Presentación", "weights": {"presentation_focus": 5, "aesthetic": 4, "gourmet": 2}},
+            {"text": "Sabor", "weights": {"flavor_focus": 5, "intense_flavor": 4, "gourmet": 2}},
+            {"text": "Servicio", "weights": {"service_focus": 5, "elegant": 3, "premium": 2}},
+            {"text": "Precio", "weights": {"price_focus": 5, "ahorrador": 4, "equilibrado": 2}},
         ],
     },
 ]
@@ -118,6 +189,8 @@ FOOD_TO_CUISINE = {
     "sabor_dulce": "Italiana",
     "sabor_salado": "Italiana",
     "contundente": "Guatemalteca",
+    "spicy": "Mexicana",
+    "street_food": "Mexicana",
 }
 
 
@@ -141,7 +214,7 @@ def _merge_weights(target: dict[str, float], weights: dict[str, int | float]) ->
 
 
 class OnboardingWizard(tk.Frame):
-    """Asistente inmersivo de 7 pasos con transiciones suaves."""
+    """Asistente inmersivo de 15 pasos con transiciones suaves."""
 
     AUTO_MS = 380
     FADE_MS = 120
@@ -160,8 +233,15 @@ class OnboardingWizard(tk.Frame):
         self.progress_var = tk.DoubleVar(value=(1 / len(ONBOARDING_STEPS)) * 100)
         self.step_label_var = tk.StringVar()
 
-        header = tk.Frame(self, bg=COLORS["surface2"], padx=20, pady=16)
-        header.pack(fill=tk.X, pady=(0, 12))
+        header = tk.Frame(
+            self,
+            bg=COLORS["surface2"],
+            highlightbackground=COLORS["card_border"],
+            highlightthickness=1,
+            padx=24,
+            pady=18,
+        )
+        header.pack(fill=tk.X, pady=(0, 16))
         tk.Label(
             header,
             textvariable=self.step_label_var,
@@ -176,7 +256,7 @@ class OnboardingWizard(tk.Frame):
             style="Horizontal.TProgressbar",
             mode="determinate",
         )
-        self._progress.pack(fill=tk.X, pady=(10, 0))
+        self._progress.pack(fill=tk.X, pady=(12, 0))
 
         self.content = tk.Frame(self, bg=COLORS["bg"])
         self.content.pack(fill=tk.BOTH, expand=True)
@@ -188,16 +268,16 @@ class OnboardingWizard(tk.Frame):
             font=FONTS["question"],
             fg=COLORS["text"],
             bg=COLORS["bg"],
-            wraplength=640,
+            wraplength=720,
             justify=tk.LEFT,
         )
-        self._question_label.pack(anchor=tk.W, padx=8, pady=(8, 20))
+        self._question_label.pack(anchor=tk.W, padx=12, pady=(8, 24))
 
         self.options_frame = tk.Frame(self.content, bg=COLORS["bg"])
-        self.options_frame.pack(fill=tk.BOTH, expand=True)
+        self.options_frame.pack(fill=tk.BOTH, expand=True, padx=4)
 
         nav = tk.Frame(self, bg=COLORS["bg"])
-        nav.pack(fill=tk.X, pady=(12, 0))
+        nav.pack(fill=tk.X, pady=(16, 0))
         self.btn_prev = ttk.Button(nav, text="← Anterior", style="Secondary.TButton", command=self._prev_step)
         self.btn_prev.pack(side=tk.LEFT)
 
@@ -262,6 +342,7 @@ class OnboardingWizard(tk.Frame):
         selected_idx = self._selections[self._step_index]
         card_layout = bool(step.get("card_layout"))
         cols = 3 if card_layout else 2
+        option_count = len(step["options"])
 
         for i, opt in enumerate(step["options"]):
             label = opt.get("text", "")
@@ -274,9 +355,12 @@ class OnboardingWizard(tk.Frame):
                 style=style,
                 command=lambda idx=i, o=opt: self._select_option(idx, o),
             )
-            btn.grid(row=i // cols, column=i % cols, sticky=tk.NSEW, padx=8, pady=8)
+            btn.grid(row=i // cols, column=i % cols, sticky=tk.NSEW, padx=10, pady=10)
         for c in range(cols):
             self.options_frame.columnconfigure(c, weight=1)
+        rows_needed = (option_count + cols - 1) // cols
+        for r in range(rows_needed):
+            self.options_frame.rowconfigure(r, weight=1)
 
         self.btn_prev.state(["!disabled"] if self._step_index > 0 else ["disabled"])
         if notify and self._on_step_change:

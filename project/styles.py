@@ -43,16 +43,17 @@ COLORS = {
 }
 
 FONTS = {
-    "title": ("Segoe UI", 20, "bold"),
+    "title": ("Segoe UI", 22, "bold"),
     "subtitle": ("Segoe UI", 13, "bold"),
     "body": ("Segoe UI", 11),
     "small": ("Segoe UI", 9),
     "card": ("Segoe UI", 12),
-    "card_title": ("Segoe UI", 15, "bold"),
-    "hero": ("Segoe UI", 24, "bold"),
-    "question": ("Segoe UI", 18),
+    "card_title": ("Segoe UI", 16, "bold"),
+    "hero": ("Segoe UI", 28, "bold"),
+    "question": ("Segoe UI", 17),
     "nav": ("Segoe UI", 11),
     "badge": ("Segoe UI", 9, "bold"),
+    "header_tag": ("Segoe UI", 10),
 }
 
 
@@ -112,7 +113,7 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
         "OptionCard.TButton",
         background=c["surface2"],
         foreground=c["text"],
-        padding=(20, 16),
+        padding=(22, 18),
         font=FONTS["card"],
         borderwidth=1,
     )

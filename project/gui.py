@@ -9,7 +9,7 @@ from tkinter import messagebox, ttk
 import database
 import styles
 from graph_view import GraphPanel
-from onboarding import OnboardingWizard
+from onboarding import ONBOARDING_STEPS, OnboardingWizard
 from recommendation import (
     PREF_LABELS_ES,
     obtener_usuario_detalle,
@@ -20,7 +20,7 @@ from recommendation import (
     recomendar_restaurantes_inteligente,
     usuario_existe,
 )
-from ui_widgets import RestaurantCard, ScrollableFrame, Sidebar
+from ui_widgets import HomeCard, RestaurantCard, ScrollableFrame, ShadowCard, Sidebar
 from user_manager import (
     actualizar_usuario,
     crear_usuario_base,
@@ -53,50 +53,41 @@ class RestaurantApp(tk.Tk):
         self.after(100, self._startup)
 
     def _build_layout(self):
-        self.header_user_var = tk.StringVar(value="Invitado")
-        self.header_greeting_var = tk.StringVar(value="Bienvenido")
+        self._active_user_var = tk.StringVar(value="")
 
-        header = tk.Frame(self, bg=styles.COLORS["header"], height=72)
+        header = tk.Frame(self, bg=styles.COLORS["header"], height=76)
         header.pack(fill=tk.X)
         header.pack_propagate(False)
         tk.Frame(header, bg=styles.COLORS["header_border"], height=1).pack(side=tk.BOTTOM, fill=tk.X)
 
         left_h = tk.Frame(header, bg=styles.COLORS["header"])
-        left_h.pack(side=tk.LEFT, padx=28, pady=14)
+        left_h.pack(side=tk.LEFT, padx=32, pady=16)
         tk.Label(
             left_h,
             text="Savory",
-            font=("Segoe UI", 22, "bold"),
+            font=styles.FONTS["title"],
             fg=styles.COLORS["accent"],
             bg=styles.COLORS["header"],
         ).pack(anchor=tk.W)
         tk.Label(
             left_h,
-            text="Descubre tu próxima experiencia gastronómica",
-            font=styles.FONTS["body"],
+            text="Descubrimiento gastronómico con IA · Ciudad de Guatemala",
+            font=styles.FONTS["header_tag"],
             fg=styles.COLORS["subtext"],
             bg=styles.COLORS["header"],
-        ).pack(anchor=tk.W, pady=(2, 0))
+        ).pack(anchor=tk.W, pady=(4, 0))
 
         right_h = tk.Frame(header, bg=styles.COLORS["header"])
-        right_h.pack(side=tk.RIGHT, padx=28, pady=14)
-        tk.Label(
+        right_h.pack(side=tk.RIGHT, padx=32, pady=16)
+        self._user_chip = tk.Label(
             right_h,
-            textvariable=self.header_greeting_var,
-            font=styles.FONTS["subtitle"],
-            fg=styles.COLORS["text"],
-            bg=styles.COLORS["header"],
-        ).pack(anchor=tk.E)
-        self._user_badge = tk.Label(
-            right_h,
-            textvariable=self.header_user_var,
+            textvariable=self._active_user_var,
             font=styles.FONTS["badge"],
             fg=styles.COLORS["text_light"],
-            bg=styles.COLORS["accent"],
-            padx=12,
-            pady=4,
+            bg=styles.COLORS["accent2"],
+            padx=14,
+            pady=6,
         )
-        self._user_badge.pack(anchor=tk.E, pady=(6, 0))
 
         body = tk.Frame(self, bg=styles.COLORS["bg"])
         body.pack(fill=tk.BOTH, expand=True)
@@ -104,7 +95,7 @@ class RestaurantApp(tk.Tk):
         self.sidebar = Sidebar(body, on_navigate=self._show_page)
         self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
 
-        self.main = ttk.Frame(body, style="Content.TFrame", padding=(24, 20))
+        self.main = ttk.Frame(body, style="Content.TFrame", padding=(32, 28))
         self.main.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         self._build_page_home()
@@ -160,50 +151,35 @@ class RestaurantApp(tk.Tk):
         )
 
         cards = ttk.Frame(f, style="Content.TFrame")
-        cards.pack(fill=tk.X, pady=8)
+        cards.pack(fill=tk.BOTH, expand=True, pady=(12, 0))
+        cards.columnconfigure(0, weight=1)
+        cards.columnconfigure(1, weight=1)
+        cards.columnconfigure(2, weight=1)
 
-        for title, desc, action, page in (
-            ("🍽️ Recomendaciones", "Descubre restaurantes compatibles con tu perfil.", "Explorar", "rec"),
-            ("🧠 Crear perfil", "Responde el cuestionario en menos de 2 minutos.", "Empezar", "onboarding"),
-            ("👤 Mi perfil", "Revisa y ajusta tus preferencias gastronómicas.", "Ver perfil", "profile"),
+        for col, (icon, title, desc, action, page) in enumerate(
+            (
+                ("🍽️", "Recomendaciones", "Descubre restaurantes compatibles con tu perfil.", "Explorar", "rec"),
+                ("🧠", "Crear perfil", "Responde 15 preguntas en menos de 3 minutos.", "Empezar", "onboarding"),
+                ("👤", "Mi perfil", "Revisa y ajusta tus preferencias gastronómicas.", "Ver perfil", "profile"),
+            )
         ):
-            card = tk.Frame(
-                cards,
-                bg=styles.COLORS["surface2"],
-                highlightbackground=styles.COLORS["card_border"],
-                highlightthickness=1,
-                padx=20,
-                pady=18,
-            )
-            card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 12))
-            tk.Label(card, text=title, font=styles.FONTS["subtitle"], bg=styles.COLORS["surface2"], fg=styles.COLORS["text"]).pack(
-                anchor=tk.W
-            )
-            tk.Label(card, text=desc, font=styles.FONTS["small"], bg=styles.COLORS["surface2"], fg=styles.COLORS["muted"], wraplength=240, justify=tk.LEFT).pack(
-                anchor=tk.W, pady=(8, 12)
-            )
-            ttk.Button(card, text=action, style="Accent.TButton", command=lambda p=page: self._nav(p)).pack(anchor=tk.W)
+            card = HomeCard(cards, icon, title, desc, action, command=lambda p=page: self._nav(p))
+            card.grid(row=0, column=col, sticky=tk.NSEW, padx=(0 if col == 0 else 8, 8 if col < 2 else 0))
 
     def _build_page_onboarding(self):
         f = self._page("onboarding")
-        self._section_title(f, "Onboarding gastronómico", "Cuéntanos cómo comes y te recomendamos mejor.")
+        self._section_title(f, "Onboarding gastronómico", "15 preguntas para construir tu perfil Savory.")
 
-        form_card = tk.Frame(
-            f,
-            bg=styles.COLORS["surface2"],
-            highlightbackground=styles.COLORS["card_border"],
-            highlightthickness=1,
-            padx=20,
-            pady=16,
-        )
-        form_card.pack(fill=tk.X, pady=(0, 12))
+        form_card = ShadowCard(f, padx=24, pady=18)
+        form_card.pack(fill=tk.X, pady=(0, 16))
+        form_inner = form_card.content()
 
         self.onb_id = tk.StringVar()
         self.onb_nombre = tk.StringVar()
         self.onb_presupuesto = tk.StringVar()
         self.onb_zona = tk.StringVar()
 
-        grid = ttk.Frame(form_card, style="Card.TFrame")
+        grid = ttk.Frame(form_inner, style="Card.TFrame")
         grid.pack(fill=tk.X)
         fields = [
             ("ID (auto)", None, self.onb_id, True),
@@ -399,16 +375,16 @@ class RestaurantApp(tk.Tk):
     def _update_header_user(self):
         uid = self._current_user_id
         if not uid:
-            self.header_user_var.set("Invitado")
-            self.header_greeting_var.set("Bienvenido")
+            self._active_user_var.set("")
+            self._user_chip.pack_forget()
             return
         name = uid
         for u in self._usuarios:
             if u["id"] == uid:
                 name = u.get("nombre") or uid
                 break
-        self.header_user_var.set("%s · %s" % (name, uid))
-        self.header_greeting_var.set("Hola, %s 👋" % name.split()[0] if name else "Hola")
+        self._active_user_var.set("%s · %s" % (name, uid))
+        self._user_chip.pack(anchor=tk.E)
 
     def _set_status(self, msg: str):
         self.status_var.set(msg)
@@ -573,7 +549,10 @@ class RestaurantApp(tk.Tk):
             messagebox.showwarning("Validación", "Completa nombre y zona.")
             return
         if any(s is None for s in self.wizard._selections):
-            messagebox.showwarning("Onboarding", "Completa los 7 pasos del cuestionario.")
+            messagebox.showwarning(
+                "Onboarding",
+                "Completa los %d pasos del cuestionario." % len(ONBOARDING_STEPS),
+            )
             return
         try:
             presupuesto = self._parse_presupuesto(self.onb_presupuesto.get())

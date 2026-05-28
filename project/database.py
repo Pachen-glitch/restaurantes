@@ -18,6 +18,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 ENV_CANDIDATES = (
     PROJECT_DIR / ".env",
     PROJECT_DIR.parent / ".env",
+    PROJECT_DIR.parent.parent / ".env",
 )
 
 LOADED_ENV_PATH: Optional[Path] = None
@@ -63,11 +64,10 @@ def load_environment() -> Path:
             _debug(f".env cargado desde: {LOADED_ENV_PATH}")
             return LOADED_ENV_PATH
 
+    paths = "\n".join(f"    {i + 1}) {path}" for i, path in enumerate(ENV_CANDIDATES))
     raise FileNotFoundError(
         "No se encontro archivo .env.\n"
-        f"  Buscado en:\n"
-        f"    1) {ENV_CANDIDATES[0]}\n"
-        f"    2) {ENV_CANDIDATES[1]}\n"
+        f"  Buscado en:\n{paths}\n"
         "  Crea uno con NEO4J_URI, NEO4J_USER y NEO4J_PASSWORD."
     )
 
@@ -176,7 +176,7 @@ class Neo4jConnection:
             self._driver.verify_connectivity()
             _debug("verify_connectivity() OK")
 
-            with self._driver.session() as session:
+            with self._driver.session(database=self.database) as session:
                 record = session.run("RETURN 1 AS ok, 'AuraDB' AS origen").single()
                 if record:
                     _debug(f"Query de prueba OK: ok={record['ok']}, origen={record['origen']}")
