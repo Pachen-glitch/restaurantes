@@ -346,9 +346,10 @@ class RestaurantCard(tk.Frame):
 
     GRADIENT_BANDS = ("#922B21", "#C0392B", "#E67E22", "#F5B041", "#FDEBD0")
 
-    def __init__(self, master, data: dict, pref_labels: dict | None = None, on_select=None, **kwargs):
+    def __init__(self, master, data: dict, pref_labels: dict | None = None, pref_hashtags: dict | None = None, on_select=None, **kwargs):
         super().__init__(master, bg=COLORS["bg"], **kwargs)
         pref_labels = pref_labels or {}
+        pref_hashtags = pref_hashtags or {}
         shadow = ShadowCard(self, padx=0, pady=0, shadow=4)
         shadow.pack(fill=tk.BOTH, expand=True)
         card = shadow.content()
@@ -417,10 +418,10 @@ class RestaurantCard(tk.Frame):
         tags.pack(fill=tk.X)
         coincidencias = (data.get("coincidencias") or [])[:5]
         for pref in coincidencias:
-            label = pref_labels.get(pref, pref.replace("_", " ").title())
+            tag = pref_hashtags.get(pref) or pref_labels.get(pref, pref.replace("_", " ").title()).replace(" ", "")
             tk.Label(
                 tags,
-                text="#%s" % label.replace(" ", ""),
+                text="#%s" % tag.replace(" ", ""),
                 font=FONTS["badge"],
                 fg=COLORS["subtext"],
                 bg=COLORS["badge_soft"],

@@ -15,6 +15,7 @@ from mood_selector import MoodSelector
 from onboarding import ONBOARDING_STEPS, OnboardingWizard
 from profile_visualizer import ProfileVisualizer
 from recommendation import (
+    PREF_HASHTAG_ES,
     PREF_LABELS_ES,
     obtener_usuario_detalle,
     obtener_datos_grafo,
@@ -618,7 +619,12 @@ class RestaurantApp(tk.Tk):
             lbl.pack(pady=80)
             return
         for r in rows:
-            card = RestaurantCard(self.rec_scroll.inner, r, pref_labels=PREF_LABELS_ES)
+            card = RestaurantCard(
+                self.rec_scroll.inner,
+                r,
+                pref_labels=PREF_LABELS_ES,
+                pref_hashtags=PREF_HASHTAG_ES,
+            )
             card.pack(fill=tk.X, pady=8, padx=4)
 
     def _on_save_onboarding(self, auto_navigate: bool = False):

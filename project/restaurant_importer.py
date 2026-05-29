@@ -125,6 +125,7 @@ def _restaurant_payload(restaurant: dict) -> dict:
         "ambiente": restaurant.get("ambiente", "casual"),
         "price_tier": restaurant.get("price_tier", "casual"),
         "descripcion": restaurant.get("descripcion", ""),
+        "semantic_archetype": restaurant.get("semantic_archetype", ""),
         "nightlife_score": int(restaurant.get("nightlife_score") or 0),
         "social_score": int(restaurant.get("social_score") or 0),
         "premium_score": int(restaurant.get("premium_score") or 0),
@@ -147,6 +148,7 @@ def _batch_import_restaurants(session, batch: list[dict]) -> None:
             rest.tipo = r.tipo,
             rest.price_tier = r.price_tier,
             rest.descripcion = r.descripcion,
+            rest.semantic_archetype = r.semantic_archetype,
             rest.nightlife_score = r.nightlife_score,
             rest.social_score = r.social_score,
             rest.premium_score = r.premium_score,
@@ -162,6 +164,20 @@ def _batch_import_restaurants(session, batch: list[dict]) -> None:
         MERGE (rest)-[:HAS_CUISINE]->(c)
         """,
         restaurantes=batch,
+    )
+
+
+def _purge_restaurant_pref_edges(session, restaurant_ids: list[str]) -> None:
+    """Elimina MATCHES_PREFERENCE obsoletas antes de reimportar."""
+    if not restaurant_ids:
+        return
+    session.run(
+        """
+        UNWIND $ids AS rid
+        MATCH (r:Restaurant {id: rid})-[m:MATCHES_PREFERENCE]->()
+        DELETE m
+        """,
+        ids=restaurant_ids,
     )
 
 
@@ -213,7 +229,9 @@ def import_guatemala_restaurants(replace_legacy: bool = True) -> dict[str, int |
         )
 
         for i in range(0, len(restaurantes), BATCH_SIZE):
-            _batch_import_restaurants(session, restaurantes[i : i + BATCH_SIZE])
+            batch = restaurantes[i : i + BATCH_SIZE]
+            _batch_import_restaurants(session, batch)
+            _purge_restaurant_pref_edges(session, [r["id"] for r in batch])
 
         for i in range(0, len(pref_edges), BATCH_SIZE * 3):
             _batch_import_pref_edges(session, pref_edges[i : i + BATCH_SIZE * 3])

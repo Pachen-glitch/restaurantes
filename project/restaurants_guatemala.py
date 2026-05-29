@@ -820,3 +820,15 @@ def build_catalog() -> list[dict[str, Any]]:
 
 RESTAURANTS = build_catalog()
 RESTAURANT_COUNT = len(RESTAURANTS)
+
+RESTAURANT_SEMANTIC_INDEX: dict[str, dict[str, Any]] = {
+    r["id"]: {
+        "archetype": r.get("semantic_archetype", ""),
+        "prefs": {k: round(float(v) / 10.0, 2) for k, v in (r.get("prefs") or {}).items() if float(v) > 0},
+        "nombre": r.get("nombre", ""),
+        "cocina": r.get("cocina", ""),
+        "tipo": r.get("tipo", ""),
+        "price_tier": r.get("price_tier", ""),
+    }
+    for r in RESTAURANTS
+}
