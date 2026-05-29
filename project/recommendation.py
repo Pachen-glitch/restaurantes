@@ -6,6 +6,7 @@ import math
 from collections import defaultdict
 
 from restaurant_links import enrich_restaurant_links
+from gastronomic_profile import categories_to_display_tags, identity_match_boost
 
 from neo4j.exceptions import Neo4jError
 from database import get_session
@@ -177,16 +178,25 @@ def _restaurant_scoring_index() -> dict[str, dict]:
     for rid, meta in RESTAURANT_SEMANTIC_INDEX.items():
         index[rid] = {
             "archetype": meta.get("archetype") or "",
+            "primary_archetype": meta.get("primary_archetype") or meta.get("archetype") or "",
+            "secondary_categories": list(meta.get("secondary_categories") or []),
+            "gastronomic_personality": meta.get("gastronomic_personality") or "",
+            "experience_style": meta.get("experience_style") or "",
+            "dimensions": dict(meta.get("dimensions") or {}),
             "prefs": dict(meta.get("prefs") or {}),
             "cocina": meta.get("cocina") or "",
+            "cocina_principal": meta.get("cocina_principal") or meta.get("cocina") or "",
             "tipo": meta.get("tipo") or "",
             "price_tier": meta.get("price_tier") or "",
             "nombre": meta.get("nombre") or "",
+            "ambiente_label": meta.get("ambiente_label") or "",
             "website_url": meta.get("website_url") or "",
             "instagram_url": meta.get("instagram_url") or "",
             "facebook_url": meta.get("facebook_url") or "",
             "maps_url": meta.get("maps_url") or "",
             "search_url": meta.get("search_url") or "",
+            "canonical_name": meta.get("canonical_name") or "",
+            "zonas_disponibles": list(meta.get("zonas_disponibles") or []),
         }
     for rid, prefs in neo4j_prefs.items():
         if rid not in index:
@@ -208,14 +218,34 @@ USER_ARCHETYPE_SIGNALS: dict[str, list[str]] = {
 }
 
 USER_REST_ARCHETYPE_MATCH: dict[str, set[str]] = {
-    "fast_food_user": {"fast_food", "guatemalteca_fast", "casual_dining"},
-    "premium_user": {"premium_fine", "italian_premium", "steakhouse_premium", "fusion_premium"},
-    "explorer_user": {"fusion_premium", "nightlife_social", "healthy_casual"},
-    "comfort_user": {"fast_food", "guatemalteca_fast", "casual_dining", "italian_casual", "cafe_brunch"},
-    "nightlife_user": {"nightlife_social", "fusion_premium"},
-    "brunch_user": {"cafe_brunch", "healthy_casual"},
-    "romantic_user": {"premium_fine", "italian_premium", "steakhouse_premium"},
-    "social_user": {"nightlife_social", "fusion_premium", "casual_dining", "fast_food"},
+    "fast_food_user": {
+        "fast_food", "guatemalteca_fast", "asian_fast_casual",
+        "mexican_casual_chain", "american_casual_chain",
+    },
+    "premium_user": {
+        "premium_fine", "italian_premium", "steakhouse_premium", "fusion_premium",
+        "guatemalteca_signature", "asian_fusion_premium", "japanese_premium",
+        "mediterranean_premium", "french_bistro", "mexican_signature",
+    },
+    "explorer_user": {
+        "fusion_premium", "nightlife_social", "healthy_casual",
+        "asian_fusion_premium", "guatemalteca_signature", "mexican_signature",
+    },
+    "comfort_user": {
+        "fast_food", "guatemalteca_fast", "italian_casual", "cafe_brunch",
+        "asian_fast_casual", "guatemalteca_signature", "mexican_casual_chain",
+        "american_casual_chain",
+    },
+    "nightlife_user": {"nightlife_social", "fusion_premium", "mexican_signature"},
+    "brunch_user": {"cafe_brunch", "healthy_casual", "french_bistro"},
+    "romantic_user": {
+        "premium_fine", "italian_premium", "steakhouse_premium",
+        "french_bistro", "mediterranean_premium", "mexican_signature",
+    },
+    "social_user": {
+        "nightlife_social", "fusion_premium", "fast_food",
+        "american_casual_chain", "mexican_signature", "asian_fusion_premium",
+    },
 }
 
 USER_REST_ARCHETYPE_CLASH: dict[str, set[str]] = {
@@ -374,6 +404,7 @@ def compute_contextual_compatibility(
     *,
     user_archetype: str | None = None,
     archetype_strength: float | None = None,
+    secondary_categories: list[str] | None = None,
 ) -> dict[str, float | str]:
     if user_archetype is None or archetype_strength is None:
         user_archetype, archetype_strength = detect_user_archetype(user_prefs)
@@ -384,12 +415,12 @@ def compute_contextual_compatibility(
     overlap = _core_overlap_score(user_n, rest_n, user_archetype)
     base = _weighted_similarity(user_n, rest_n, weights) * 100.0
     context = _archetype_context_boost(user_archetype, rest_archetype, float(archetype_strength))
+    context += identity_match_boost(user_archetype, list(secondary_categories or []))
     behavior = _behavior_alignment_score(user_n, rest_n, user_archetype)
 
-    compat = overlap * 0.42 + base * 0.28 + context + behavior
+    compat = overlap * 0.40 + base * 0.28 + context + behavior
     compat = min(100.0, max(0.0, compat))
 
-    # Boost fuerte cuando el arquetipo encaja de forma clara (ej. fast food + fast food).
     if rest_archetype in USER_REST_ARCHETYPE_MATCH.get(user_archetype, set()) and overlap >= 55:
         compat = min(100.0, compat + 8.0)
 
@@ -549,6 +580,8 @@ PREF_HASHTAG_ES = {
     "romantic": "romantic",
     "contundente": "contundente",
     "americana": "americana",
+    "chinese": "china",
+    "quick_meal": "quickmeal",
 }
 
 
@@ -618,12 +651,26 @@ _EXPLANATION_BLOCKLIST = {
         "elegant",
         "premium",
     },
-    "italian": {"fast_food", "comida_rapida", "street_food"},
+    "asian_fast_casual": {
+        "pref_italiana",
+        "gourmet",
+        "exclusive",
+        "romantic",
+        "intimate",
+        "wine_focus",
+        "slow_food",
+        "business_dining",
+        "elegant",
+        "premium",
+    },
+    "italian": {"fast_food", "comida_rapida", "street_food", "quick_meal"},
 }
 
 
-def _restaurant_semantic_profile(rest_prefs: dict[str, float]) -> set[str]:
+def _restaurant_semantic_profile(rest_prefs: dict[str, float], rest_archetype: str = "") -> set[str]:
     profiles: set[str] = set()
+    if rest_archetype == "asian_fast_casual":
+        profiles.add("asian_fast_casual")
     if rest_prefs.get("fast_food", 0) >= 0.65 or rest_prefs.get("comida_rapida", 0) >= 0.65:
         profiles.add("fast_food")
     if rest_prefs.get("pref_italiana", 0) >= 0.65:
@@ -631,19 +678,38 @@ def _restaurant_semantic_profile(rest_prefs: dict[str, float]) -> set[str]:
     return profiles
 
 
-def _pref_allowed_for_restaurant(pref: str, rest_prefs: dict[str, float]) -> bool:
-    profiles = _restaurant_semantic_profile(rest_prefs)
+def _pref_allowed_for_restaurant(pref: str, rest_prefs: dict[str, float], rest_archetype: str = "") -> bool:
+    profiles = _restaurant_semantic_profile(rest_prefs, rest_archetype)
     for profile in profiles:
         blocked = _EXPLANATION_BLOCKLIST.get(profile, set())
         if pref in blocked:
             return False
     if "fast_food" in profiles and pref in _EXPLANATION_BLOCKLIST["fast_food"]:
         return False
+    if "asian_fast_casual" in profiles and pref in _EXPLANATION_BLOCKLIST["asian_fast_casual"]:
+        return False
     return True
 
 
-def _restaurant_headline(nombre: str, tipo: str, rest_prefs: dict[str, float]) -> str:
+def _restaurant_headline(
+    nombre: str,
+    tipo: str,
+    rest_prefs: dict[str, float],
+    *,
+    experience_style: str = "",
+    primary_archetype: str = "",
+) -> str:
+    if experience_style:
+        return "Te recomendamos %s — %s — porque:" % (nombre, experience_style)
     tipo_l = (tipo or "").lower()
+    if primary_archetype == "cafe_brunch" or rest_prefs.get("coffee_culture", 0) >= 0.75:
+        return "Te recomendamos %s para cafe, brunch y ambiente aesthetic porque:" % nombre
+    if primary_archetype == "guatemalteca_signature":
+        return "Te recomendamos %s como referencia de cocina guatemalteca porque:" % nombre
+    if primary_archetype == "asian_fusion_premium":
+        return "Te recomendamos %s por su propuesta asiatica premium porque:" % nombre
+    if primary_archetype == "fusion_premium" and rest_prefs.get("nightlife", 0) >= 0.65:
+        return "Te recomendamos %s como food hall social y vibrante porque:" % nombre
     if rest_prefs.get("fast_food", 0) >= 0.65 or rest_prefs.get("comida_rapida", 0) >= 0.65:
         return "Te recomendamos %s para una comida rapida y casual porque:" % nombre
     if rest_prefs.get("pref_italiana", 0) >= 0.75:
@@ -674,44 +740,81 @@ def generar_explicacion(
     descripcion: str = "",
     user_archetype: str = "",
     rest_archetype: str = "",
+    secondary_categories: list[str] | None = None,
+    gastronomic_personality: str = "",
+    experience_style: str = "",
 ) -> list[str]:
-    """Genera bullets contextuales segun arquetipo dominante del usuario."""
+    """Genera bullets contextuales segun identidad gastronomica multicategoria."""
     bullets: list[str] = []
     user_arch = user_archetype or detect_user_archetype(user_prefs)[0]
     user_n = _normalize_pref_vector(user_prefs)
+    categories = list(secondary_categories or [])
+
+    if gastronomic_personality and len(gastronomic_personality) < 120:
+        bullets.append("es %s" % gastronomic_personality.lower())
+    if experience_style and experience_style not in bullets:
+        bullets.append("ofrece %s" % experience_style.lower())
+
+    category_narratives = {
+        "coffee_culture": "encaja con tu cultura de cafe",
+        "brunch": "ideal para tu estilo brunch",
+        "aesthetic": "tiene el ambiente aesthetic que buscas",
+        "trendy": "conecta con tu perfil moderno y explorador",
+        "social": "funciona bien para salidas sociales",
+        "nightlife": "combina con tu mood nocturno",
+        "adventurous": "satisface tu gusto por lo audaz",
+        "foodie": "apela a tu lado foodie",
+        "cultural": "tiene identidad cultural fuerte",
+        "premium_local": "es premium con raiz local",
+        "traditional": "honra sabores tradicionales",
+        "family_friendly": "es apto para salidas en familia",
+        "quick_meal": "encaja con tu ritmo de comida rapida",
+        "pref_guatemalteca": "celebra la cocina guatemalteca",
+        "pref_italiana": "conecta con tu gusto italiano",
+        "pref_mexicana": "resuena con sabores mexicanos",
+        "pref_japonesa": "destaca por propuesta japonesa",
+        "asian_fusion": "encaja con tu interes por fusion asiatica",
+        "steakhouse": "es referencia para amantes de la parrilla",
+        "dinner_experience": "propone una cena como experiencia",
+    }
+    for cat in categories[:4]:
+        line = category_narratives.get(cat)
+        if line and line not in bullets:
+            bullets.append(line)
 
     if user_arch == "fast_food_user" and (
-        rest_archetype in {"fast_food", "guatemalteca_fast"} or rest_prefs.get("fast_food", 0) >= 0.65
+        rest_archetype in {"fast_food", "guatemalteca_fast", "mexican_casual_chain"} or rest_prefs.get("fast_food", 0) >= 0.65
     ):
         bullets.extend(
             [
                 "prefieres comida rapida y casual",
                 "disfrutas sabores americanos y comfort food",
                 "buscas opciones practicas para compartir sin complicaciones",
-                "valoras la comodidad por encima de experiencias gourmet",
             ]
         )
-    elif user_arch == "premium_user" and rest_archetype in {"premium_fine", "italian_premium", "steakhouse_premium"}:
+    elif user_arch == "premium_user" and rest_archetype in USER_REST_ARCHETYPE_MATCH.get("premium_user", set()):
         bullets.extend(
             [
                 "buscas experiencias premium y bien servidas",
                 "valoras calidad, ambiente y propuesta gastronomica cuidada",
             ]
         )
-    elif user_arch == "explorer_user" and rest_archetype in {"fusion_premium", "nightlife_social"}:
+    elif user_arch == "explorer_user" and rest_archetype in USER_REST_ARCHETYPE_MATCH.get("explorer_user", set()):
         bullets.extend(
             [
                 "te gusta descubrir lugares con propuesta diferente",
                 "disfrutas ambientes modernos y dinamicos",
             ]
         )
+    elif user_arch == "brunch_user" and rest_archetype in {"cafe_brunch", "french_bistro"}:
+        bullets.append("encaja con tu perfil cafe/brunch")
 
     coincidencias: list[tuple[str, float]] = []
     for pref, u_score in user_prefs.items():
         w = rest_prefs.get(pref)
         if w is None or w < 0.40 or u_score < 3.5:
             continue
-        if not _pref_allowed_for_restaurant(pref, rest_prefs):
+        if not _pref_allowed_for_restaurant(pref, rest_prefs, rest_archetype):
             continue
         coincidencias.append((pref, float(u_score) * float(w)))
     coincidencias.sort(key=lambda x: -x[1])
@@ -743,7 +846,7 @@ def generar_explicacion(
                 bullets.append(generic)
 
     if rest_prefs.get("pref_italiana", 0) >= 0.7 and user_n.get("pref_italiana", 0) >= 0.55:
-        if _pref_allowed_for_restaurant("pref_italiana", rest_prefs):
+        if _pref_allowed_for_restaurant("pref_italiana", rest_prefs, rest_archetype):
             bullets.append("te atrae la cocina italiana")
     if rest_prefs.get("fast_food", 0) >= 0.65 and user_n.get("fast_food", 0) >= 0.45:
         bullets.append("es una opcion rapida que encaja con tu ritmo")
@@ -762,7 +865,13 @@ def generar_explicacion(
     if not unique:
         unique.append(descripcion[:120] if descripcion else "tu perfil encaja con el estilo de este lugar")
 
-    headline = _restaurant_headline(restaurant_nombre, tipo, rest_prefs)
+    headline = _restaurant_headline(
+        restaurant_nombre,
+        tipo,
+        rest_prefs,
+        experience_style=experience_style,
+        primary_archetype=rest_archetype,
+    )
     if user_arch == "fast_food_user" and rest_prefs.get("fast_food", 0) >= 0.65:
         headline = "%s encaja contigo porque:" % restaurant_nombre
     return [headline] + unique[:5]
@@ -772,6 +881,7 @@ def _coincidencias_prefs(
     user_prefs: dict[str, float],
     rest_prefs: dict[str, float],
     user_archetype: str = "",
+    rest_archetype: str = "",
 ) -> list[str]:
     user_arch = user_archetype or detect_user_archetype(user_prefs)[0]
     priority_keys = list(dict.fromkeys(USER_ARCHETYPE_SIGNALS.get(user_arch, [])))
@@ -781,7 +891,7 @@ def _coincidencias_prefs(
         w = rest_prefs.get(pref)
         if w is None or w < 0.40 or u_score < 3.5:
             continue
-        if not _pref_allowed_for_restaurant(pref, rest_prefs):
+        if not _pref_allowed_for_restaurant(pref, rest_prefs, rest_archetype):
             continue
         boost = 2.0 if pref in priority_keys else 1.0
         scored.append((pref, boost * float(u_score) * float(w)))
@@ -794,20 +904,45 @@ def _enrich_display_tags(
     coincidencias: list[str],
     *,
     rest_archetype: str = "",
+    secondary_categories: list[str] | None = None,
     cocinas: list[str] | None = None,
 ) -> list[str]:
-    """Agrega hashtags semanticos cuando el arquetipo del restaurante lo amerita."""
-    tags = list(coincidencias)
+    """Hashtags desde identidad multicategoria + coincidencias de prefs."""
+    tags = categories_to_display_tags(list(secondary_categories or []), limit=4)
+    for pref_tag in coincidencias:
+        if pref_tag not in tags:
+            tags.append(pref_tag)
     cocinas = cocinas or []
     if rest_archetype in {"fast_food", "guatemalteca_fast"}:
-        for extra in ("americana",):
+        for extra in ("americana", "quickmeal"):
             if extra not in tags:
                 tags.insert(min(2, len(tags)), extra)
-    if rest_archetype == "fusion_premium" and "trendy" not in tags:
+    if rest_archetype == "asian_fast_casual":
+        for extra in ("china", "quickmeal"):
+            if extra not in tags:
+                tags.append(extra)
+    if rest_archetype in {"fusion_premium", "asian_fusion_premium"} and "trendy" not in tags:
         tags.append("trendy")
-    if rest_archetype in {"italian_premium", "premium_fine"} and "premium" not in tags:
+    if rest_archetype in {"italian_premium", "premium_fine", "guatemalteca_signature"} and "premium" not in tags:
         tags.append("premium")
+    if rest_archetype == "cafe_brunch" and "coffee" not in tags:
+        tags.insert(0, "coffee")
     return tags[:6]
+
+
+def _dedupe_canonical_results(rows: list[dict]) -> list[dict]:
+    """Garantiza una sola entrada por restaurante canonico."""
+    best: dict[str, dict] = {}
+    for row in rows:
+        key = (
+            row.get("canonical_name")
+            or row.get("id")
+            or (row.get("nombre") or "").strip().lower()
+        )
+        prev = best.get(key)
+        if prev is None or float(row.get("compatibilidad_pct") or 0) > float(prev.get("compatibilidad_pct") or 0):
+            best[key] = row
+    return list(best.values())
 
 
 def recomendar_restaurantes_inteligente(usuario_id: str, mood: str | None = None) -> list[dict]:
@@ -826,12 +961,24 @@ def recomendar_restaurantes_inteligente(usuario_id: str, mood: str | None = None
     OPTIONAL MATCH (u)-[:LIVES_IN]->(zu:Zone)
     OPTIONAL MATCH (r)-[:LOCATED_IN]->(zr:Zone)
     OPTIONAL MATCH (r)-[:HAS_CUISINE]->(rc:Cuisine)
-    RETURN r.id AS id, r.nombre AS nombre, r.rating AS rating, r.precio AS precio,
-           r.tipo AS tipo, r.descripcion AS descripcion,
+    WITH u, visitados, r, zu,
+         coalesce(r.zonas_disponibles, []) AS zonas_prop,
+         collect(DISTINCT zr.nombre) AS zonas_rel,
+         collect(DISTINCT rc.nombre) AS cocinas
+    WITH u, visitados, r, zu, cocinas,
+         CASE WHEN size(zonas_prop) > 0 THEN zonas_prop ELSE zonas_rel END AS zonas
+    RETURN r.id AS id,
+           coalesce(r.canonical_name, r.id) AS canonical_name,
+           r.nombre AS nombre,
+           r.rating AS rating,
+           r.precio AS precio,
+           r.tipo AS tipo,
+           r.descripcion AS descripcion,
            coalesce(r.semantic_archetype, '') AS semantic_archetype,
-           zr.nombre AS zona,
-           CASE WHEN zu IS NOT NULL AND zr = zu THEN 1 ELSE 0 END AS misma_zona,
-           collect(DISTINCT rc.nombre) AS cocinas
+           zonas,
+           head(zonas) AS zona,
+           CASE WHEN zu IS NOT NULL AND zu.nombre IN zonas THEN 1 ELSE 0 END AS misma_zona,
+           cocinas
     """
     try:
         with get_session() as session:
@@ -853,6 +1000,7 @@ def recomendar_restaurantes_inteligente(usuario_id: str, mood: str | None = None
             rest_archetype,
             user_archetype=user_archetype,
             archetype_strength=archetype_strength,
+            secondary_categories=list(meta.get("secondary_categories") or []),
         )
 
         similares = similares_map.get(rid, 0)
@@ -885,14 +1033,28 @@ def recomendar_restaurantes_inteligente(usuario_id: str, mood: str | None = None
             descripcion=row.get("descripcion") or "",
             user_archetype=user_archetype,
             rest_archetype=rest_archetype,
+            secondary_categories=list(meta.get("secondary_categories") or []),
+            gastronomic_personality=meta.get("gastronomic_personality") or "",
+            experience_style=meta.get("experience_style") or "",
         )
-        coincidencias = _coincidencias_prefs(user_prefs, rp, user_archetype)
+        coincidencias = _coincidencias_prefs(user_prefs, rp, user_archetype, rest_archetype)
 
         item = dict(row)
         item["cocinas"] = [c for c in (item.get("cocinas") or []) if c]
+        zonas = [z for z in (item.get("zonas") or meta.get("zonas_disponibles") or []) if z]
+        if not zonas and item.get("zona"):
+            zonas = [item["zona"]]
+        item["zonas_disponibles"] = zonas
+        item["zona"] = zonas[0] if zonas else item.get("zona")
+        item["canonical_name"] = item.get("canonical_name") or meta.get("canonical_name") or ""
+        item["primary_archetype"] = meta.get("primary_archetype") or rest_archetype
+        item["secondary_categories"] = list(meta.get("secondary_categories") or [])
+        item["gastronomic_personality"] = meta.get("gastronomic_personality") or ""
+        item["experience_style"] = meta.get("experience_style") or ""
         coincidencias = _enrich_display_tags(
             coincidencias,
             rest_archetype=rest_archetype,
+            secondary_categories=list(meta.get("secondary_categories") or []),
             cocinas=item.get("cocinas"),
         )
         item["match_pref"] = compat["match_pref"]
@@ -907,6 +1069,7 @@ def recomendar_restaurantes_inteligente(usuario_id: str, mood: str | None = None
         enrich_restaurant_links(item)
         scored.append(item)
 
+    scored = _dedupe_canonical_results(scored)
     scored.sort(
         key=lambda x: (
             x.get("compatibilidad_pct", 0),

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
+from collections import defaultdict
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -70,6 +73,7 @@ _PREF_KEYS = [
     "intimate",
     "fast_food",
     "comida_rapida",
+    "quick_meal",
 ]
 
 # Perfiles semanticos: prefs coherentes + caps + prefs prohibidas por arquetipo.
@@ -87,6 +91,7 @@ SEMANTIC_ARCHETYPES: dict[str, dict[str, Any]] = {
         "prefs": {
             "fast_food": 10,
             "comida_rapida": 10,
+            "quick_meal": 10,
             "fast_service": 10,
             "casual": 9,
             "comfort_food": 8,
@@ -323,6 +328,207 @@ SEMANTIC_ARCHETYPES: dict[str, dict[str, Any]] = {
         "forbidden": {"fast_food", "comida_rapida", "street_food", "fast_service"},
         "max_prefs": {"fast_service": 6},
     },
+    "asian_fast_casual": {
+        "scores": {
+            "nightlife_score": 3,
+            "social_score": 7,
+            "premium_score": 2,
+            "comfort_score": 8,
+            "aesthetic_score": 4,
+            "romantic_score": 2,
+            "fast_service_score": 10,
+        },
+        "prefs": {
+            "asian_fusion": 9,
+            "comida_rapida": 9,
+            "quick_meal": 9,
+            "fast_service": 9,
+            "casual": 9,
+            "comfort_food": 7,
+            "family_friendly": 6,
+        },
+        "forbidden": {
+            "pref_italiana",
+            "gourmet",
+            "premium",
+            "exclusive",
+            "romantic",
+            "intimate",
+            "wine_focus",
+            "slow_food",
+            "business_dining",
+            "elegant",
+        },
+        "max_prefs": {"premium": 2, "gourmet": 2, "aesthetic": 4},
+    },
+    "guatemalteca_signature": {
+        "scores": {
+            "nightlife_score": 4,
+            "social_score": 7,
+            "premium_score": 8,
+            "comfort_score": 8,
+            "aesthetic_score": 7,
+            "romantic_score": 6,
+            "fast_service_score": 6,
+        },
+        "prefs": {
+            "pref_guatemalteca": 10,
+            "premium": 8,
+            "gourmet": 8,
+            "comfort_food": 7,
+            "family_friendly": 7,
+            "slow_food": 7,
+            "elegant": 6,
+        },
+        "forbidden": {"fast_food", "comida_rapida", "street_food"},
+        "max_prefs": {"fast_service": 7},
+    },
+    "asian_fusion_premium": {
+        "scores": {
+            "nightlife_score": 6,
+            "social_score": 8,
+            "premium_score": 8,
+            "comfort_score": 5,
+            "aesthetic_score": 8,
+            "romantic_score": 6,
+            "fast_service_score": 6,
+        },
+        "prefs": {
+            "asian_fusion": 10,
+            "aventurero": 9,
+            "premium": 8,
+            "trendy": 8,
+            "gourmet": 7,
+            "social_grupo": 7,
+        },
+        "forbidden": {"fast_food", "comida_rapida"},
+        "max_prefs": {"fast_service": 7},
+    },
+    "japanese_premium": {
+        "scores": {
+            "nightlife_score": 4,
+            "social_score": 7,
+            "premium_score": 9,
+            "comfort_score": 5,
+            "aesthetic_score": 8,
+            "romantic_score": 6,
+            "fast_service_score": 6,
+        },
+        "prefs": {
+            "pref_japonesa": 10,
+            "premium": 9,
+            "gourmet": 8,
+            "business_dining": 7,
+            "elegant": 7,
+            "social_grupo": 6,
+        },
+        "forbidden": {"fast_food", "comida_rapida", "street_food"},
+        "max_prefs": {"fast_service": 7},
+    },
+    "mexican_signature": {
+        "scores": {
+            "nightlife_score": 6,
+            "social_score": 8,
+            "premium_score": 7,
+            "comfort_score": 7,
+            "aesthetic_score": 8,
+            "romantic_score": 5,
+            "fast_service_score": 6,
+        },
+        "prefs": {
+            "pref_mexicana": 10,
+            "lively": 8,
+            "trendy": 7,
+            "aesthetic": 7,
+            "social_grupo": 7,
+            "premium": 6,
+        },
+        "forbidden": {"pref_italiana", "fast_food"},
+        "max_prefs": {"fast_service": 7},
+    },
+    "mexican_casual_chain": {
+        "scores": {
+            "nightlife_score": 3,
+            "social_score": 7,
+            "premium_score": 2,
+            "comfort_score": 8,
+            "aesthetic_score": 4,
+            "romantic_score": 2,
+            "fast_service_score": 9,
+        },
+        "prefs": {
+            "pref_mexicana": 10,
+            "family_friendly": 8,
+            "comfort_food": 7,
+            "fast_service": 8,
+            "casual": 8,
+            "quick_meal": 7,
+        },
+        "forbidden": {"gourmet", "exclusive", "premium"},
+        "max_prefs": {"premium": 3},
+    },
+    "american_casual_chain": {
+        "scores": {
+            "nightlife_score": 5,
+            "social_score": 8,
+            "premium_score": 3,
+            "comfort_score": 8,
+            "aesthetic_score": 4,
+            "romantic_score": 3,
+            "fast_service_score": 8,
+        },
+        "prefs": {
+            "comfort_food": 8,
+            "family_friendly": 8,
+            "casual": 8,
+            "social_grupo": 7,
+            "fast_service": 7,
+        },
+        "forbidden": {"gourmet", "exclusive", "wine_focus"},
+        "max_prefs": {"premium": 4},
+    },
+    "mediterranean_premium": {
+        "scores": {
+            "nightlife_score": 4,
+            "social_score": 6,
+            "premium_score": 8,
+            "comfort_score": 6,
+            "aesthetic_score": 7,
+            "romantic_score": 7,
+            "fast_service_score": 5,
+        },
+        "prefs": {
+            "pref_mediterranea": 10,
+            "saludable": 8,
+            "gourmet": 7,
+            "premium": 7,
+            "slow_food": 7,
+            "elegant": 6,
+        },
+        "forbidden": {"fast_food", "comida_rapida"},
+        "max_prefs": {"fast_service": 6},
+    },
+    "french_bistro": {
+        "scores": {
+            "nightlife_score": 4,
+            "social_score": 6,
+            "premium_score": 8,
+            "comfort_score": 6,
+            "aesthetic_score": 8,
+            "romantic_score": 8,
+            "fast_service_score": 5,
+        },
+        "prefs": {
+            "gourmet": 8,
+            "elegant": 8,
+            "wine_focus": 7,
+            "romantic": 7,
+            "slow_food": 7,
+            "premium": 7,
+        },
+        "forbidden": {"fast_food", "comida_rapida", "street_food"},
+        "max_prefs": {"fast_service": 6},
+    },
 }
 
 _FAST_FOOD_NAMES = (
@@ -419,6 +625,8 @@ def _detect_semantic_archetype(
     tipo_l = (tipo or "").lower()
     ambiente_l = (ambiente or "").lower()
 
+    if "china wok" in name_l or "wok to walk" in name_l or ("wok" in tipo_l and "rapido" in tipo_l):
+        return "asian_fast_casual"
     if any(token in name_l for token in _FAST_FOOD_NAMES) or "comida rapida" in tipo_l:
         return "fast_food"
     if "pollo campero" in name_l or name_l.strip() == "tip top":
@@ -462,7 +670,7 @@ def _apply_cuisine_ambiente_hints(
     archetype: str,
 ) -> dict[str, int]:
     """Refuerzos suaves solo cuando no contradicen el arquetipo."""
-    if archetype in {"fast_food", "guatemalteca_fast"}:
+    if archetype in {"fast_food", "guatemalteca_fast", "asian_fast_casual"}:
         return prefs
     for key, value in _CUISINE_PREF_HINTS.get(cocina, {}).items():
         if key in prefs:
@@ -495,8 +703,13 @@ def _build_semantic_prefs(
     price_tier: str,
     profile: str,
     pref_boost: dict[str, int] | None = None,
+    forced_archetype: str | None = None,
 ) -> tuple[str, dict[str, int], dict[str, int]]:
-    archetype = _detect_semantic_archetype(nombre, cocina, tipo, ambiente, price_tier, profile)
+    archetype = forced_archetype or _detect_semantic_archetype(
+        nombre, cocina, tipo, ambiente, price_tier, profile
+    )
+    if archetype not in SEMANTIC_ARCHETYPES:
+        archetype = _detect_semantic_archetype(nombre, cocina, tipo, ambiente, price_tier, profile)
     template = SEMANTIC_ARCHETYPES[archetype]
     scores = dict(template["scores"])
     prefs = _merge_pref_dict(template["prefs"], pref_boost)
@@ -520,6 +733,15 @@ def validate_restaurant_classification(restaurant: dict[str, Any]) -> list[str]:
             issues.append("fast food marcado como premium")
         if prefs.get("romantic", 0) >= 5:
             issues.append("fast food marcado como romantico")
+        if prefs.get("romantic", 0) >= 5:
+            issues.append("fast food marcado como romantico")
+    if archetype == "asian_fast_casual":
+        if prefs.get("pref_italiana", 0) >= 3:
+            issues.append("asiatico rapido con afinidad italiana")
+        if prefs.get("gourmet", 0) >= 4:
+            issues.append("asiatico rapido marcado como gourmet")
+        if prefs.get("premium", 0) >= 4:
+            issues.append("asiatico rapido marcado como premium")
     if archetype == "italian_premium" and prefs.get("fast_food", 0) >= 5:
         issues.append("italiano premium con fast food")
     if prefs.get("fast_food", 0) >= 7 and prefs.get("exclusive", 0) >= 6:
@@ -527,6 +749,129 @@ def validate_restaurant_classification(restaurant: dict[str, Any]) -> list[str]:
     if prefs.get("pref_italiana", 0) >= 7 and archetype == "fast_food":
         issues.append("%s clasificado como italiano" % nombre)
     return issues
+
+
+# Clasificacion forzada para cadenas/conceptos conocidos (evita hints contradictorios).
+CANONICAL_OVERRIDES: dict[str, dict[str, Any]] = {
+    "burger_king": {
+        "forced_archetype": "fast_food",
+        "cocina": "Internacional",
+        "pref_boost": {"comfort_food": 9, "fast_service": 10, "quick_meal": 10},
+    },
+    "wendys": {
+        "forced_archetype": "fast_food",
+        "cocina": "Internacional",
+        "pref_boost": {"comfort_food": 9, "quick_meal": 10},
+    },
+    "mcdonald_s": {"forced_archetype": "fast_food", "cocina": "Internacional"},
+    "china_wok": {
+        "forced_archetype": "asian_fast_casual",
+        "cocina": "Asiatica",
+        "pref_boost": {"asian_fusion": 10, "quick_meal": 10, "comfort_food": 7},
+    },
+    "wok_to_walk": {"forced_archetype": "asian_fast_casual", "cocina": "Asiatica"},
+    "tre_fratelli": {
+        "forced_archetype": "italian_premium",
+        "pref_boost": {"pref_italiana": 10, "premium": 8, "romantic": 8, "business_dining": 7},
+    },
+    "mercado_24": {
+        "forced_archetype": "fusion_premium",
+        "pref_boost": {"trendy": 10, "aventurero": 9, "social_grupo": 9, "nightlife": 8},
+    },
+    "pollo_campero": {"forced_archetype": "guatemalteca_fast"},
+    "little_caesars": {"forced_archetype": "fast_food", "cocina": "Internacional"},
+    "papa_john_s": {"forced_archetype": "fast_food", "cocina": "Internacional"},
+}
+
+BRANCH_TO_CANONICAL_ID: dict[str, str] = {}
+
+
+def normalize_canonical_key(nombre: str) -> str:
+    """Clave estable por nombre de cadena/restaurante (sin zona)."""
+    raw = unicodedata.normalize("NFKD", (nombre or "").strip())
+    ascii_name = raw.encode("ascii", "ignore").decode("ascii").lower()
+    ascii_name = re.sub(r"[^a-z0-9]+", "_", ascii_name).strip("_")
+    return ascii_name or "restaurant"
+
+
+def _zone_sort_key(zona: str) -> tuple[int, str]:
+    if zona in ZONAS:
+        return (ZONAS.index(zona), zona)
+    return (99, zona)
+
+
+def consolidate_canonical_restaurants(branch_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Agrupa sucursales en un unico registro canonico por nombre."""
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in branch_rows:
+        key = normalize_canonical_key(row.get("nombre") or "")
+        groups[key].append(row)
+
+    canonical_rows: list[dict[str, Any]] = []
+    for key, branches in groups.items():
+        primary = sorted(branches, key=lambda b: _zone_sort_key(b.get("zona") or ""))[0]
+        zonas = sorted({b.get("zona") for b in branches if b.get("zona")}, key=_zone_sort_key)
+        rating = round(sum(float(b.get("rating") or 0) for b in branches) / len(branches), 1)
+        precio = min(int(b.get("precio") or 0) for b in branches)
+
+        merged = dict(primary)
+        merged["canonical_name"] = key
+        merged["id"] = f"cn_{key}"
+        merged["zonas_disponibles"] = zonas
+        merged["zona"] = zonas[0] if zonas else primary.get("zona", "")
+        merged["zona_principal"] = merged["zona"]
+        merged["rating"] = rating
+        merged["precio"] = precio
+        merged["sucursales"] = len(branches)
+
+        base_desc = (primary.get("descripcion") or "").strip()
+        if len(zonas) > 1:
+            merged["descripcion"] = "%s Disponible en: %s." % (
+                base_desc.split(".")[0] + "." if base_desc else primary.get("nombre", ""),
+                ", ".join(zonas),
+            )
+        canonical_rows.append(merged)
+
+    canonical_rows.sort(key=lambda r: (r.get("nombre") or "").lower())
+    return canonical_rows
+
+
+def validate_catalog_integrity(restaurants: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Detecta duplicados, zonas no consolidadas y contradicciones globales."""
+    flagged: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+
+    for row in restaurants:
+        nombre = row.get("nombre") or ""
+        canon = row.get("canonical_name") or normalize_canonical_key(nombre)
+        issues: list[str] = list(validate_restaurant_classification(row))
+
+        if canon in seen_keys:
+            issues.append("restaurante canonico duplicado en catalogo")
+        seen_keys.add(canon)
+
+        zonas = row.get("zonas_disponibles") or []
+        if len(zonas) < 1:
+            issues.append("sin zonas disponibles")
+        if row.get("sucursales", 1) > 1 and len(zonas) < 2:
+            issues.append("sucursales declaradas pero zonas no consolidadas")
+
+        forbidden_pairs = (
+            ("fast_food", "pref_italiana", 3),
+            ("asian_fast_casual", "pref_italiana", 3),
+            ("fast_food", "premium", 4),
+            ("asian_fast_casual", "premium", 4),
+        )
+        prefs = row.get("prefs") or {}
+        arch = row.get("semantic_archetype") or ""
+        for a, pref, cap in forbidden_pairs:
+            if arch == a and prefs.get(pref, 0) >= cap:
+                issues.append("%s con %s=%s" % (a, pref, prefs.get(pref)))
+
+        if issues:
+            flagged.append({"id": row.get("id"), "nombre": nombre, "canonical_name": canon, "issues": issues})
+
+    return flagged
 
 
 def _google_maps_url(nombre: str, zona: str) -> str:
@@ -690,11 +1035,7 @@ def get_restaurant_links(nombre: str, zona: str) -> dict[str, str]:
 
 def validate_restaurant_catalog(restaurants: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     rows = restaurants if restaurants is not None else RESTAURANTS
-    flagged: list[dict[str, Any]] = []
-    for row in rows:
-        issues = validate_restaurant_classification(row)
-        if issues:
-            flagged.append({"id": row.get("id"), "nombre": row.get("nombre"), "issues": issues})
+    flagged = validate_catalog_integrity(rows)
     return {"valid": len(flagged) == 0, "checked": len(rows), "issues": flagged}
 
 
@@ -712,18 +1053,35 @@ def _curated_entry(
     pref_boost: dict[str, int] | None = None,
     link_overrides: dict[str, str] | None = None,
 ) -> dict[str, Any]:
+    canon_key = normalize_canonical_key(nombre)
+    override = CANONICAL_OVERRIDES.get(canon_key, {})
+    cocina_eff = override.get("cocina") or cocina
+    boost_merged: dict[str, int] = dict(override.get("pref_boost") or {})
+    if pref_boost:
+        for k, v in pref_boost.items():
+            boost_merged[k] = max(boost_merged.get(k, 0), int(v))
+
     archetype, score_map, prefs = _build_semantic_prefs(
-        nombre, cocina, tipo, ambiente, price_tier, profile, pref_boost
+        nombre,
+        cocina_eff,
+        tipo,
+        ambiente,
+        price_tier,
+        profile,
+        boost_merged or None,
+        forced_archetype=override.get("forced_archetype"),
     )
     links = build_restaurant_links(nombre, zona, link_overrides)
     return {
         "id": "",
         "nombre": nombre,
+        "canonical_name": canon_key,
         "zona": zona,
+        "zonas_disponibles": [zona],
         "rating": rating,
         "price_tier": price_tier,
         "precio": precio,
-        "cocina": cocina,
+        "cocina": cocina_eff,
         "tipo": tipo,
         "ambiente": ambiente,
         "descripcion": descripcion,
@@ -998,8 +1356,18 @@ def build_catalog() -> list[dict[str, Any]]:
         _real_entry("Papa John's", 'Zona 16', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 115, 'Pizza a domicilio de cadena internacional.', 'casual', {'fast_service': 8}),
         _real_entry("Papa John's", 'Zona 5', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 115, 'Pizza a domicilio de cadena internacional.', 'casual', {'fast_service': 8}),
     ]
+    global BRANCH_TO_CANONICAL_ID
+    BRANCH_TO_CANONICAL_ID = {}
     for idx, restaurant in enumerate(rows, start=1):
-        restaurant["id"] = f"gc_{idx:03d}"
+        branch_id = f"gc_{idx:03d}"
+        restaurant["_branch_id"] = branch_id
+        canon_key = normalize_canonical_key(restaurant.get("nombre") or "")
+        BRANCH_TO_CANONICAL_ID[branch_id] = f"cn_{canon_key}"
+
+    rows = consolidate_canonical_restaurants(rows)
+    from gastronomic_profile import apply_gastronomic_identity
+
+    rows = [apply_gastronomic_identity(row) for row in rows]
     report = validate_restaurant_catalog(rows)
     if not report["valid"]:
         sample = report["issues"][:5]
@@ -1013,11 +1381,27 @@ RESTAURANT_COUNT = len(RESTAURANTS)
 RESTAURANT_SEMANTIC_INDEX: dict[str, dict[str, Any]] = {
     r["id"]: {
         "archetype": r.get("semantic_archetype", ""),
+        "primary_archetype": r.get("primary_archetype", r.get("semantic_archetype", "")),
+        "secondary_categories": list(r.get("secondary_categories") or []),
+        "gastronomic_personality": r.get("gastronomic_personality", ""),
+        "experience_style": r.get("experience_style", ""),
+        "cocina_principal": r.get("cocina_principal", r.get("cocina", "")),
+        "ambiente_label": r.get("ambiente_label", r.get("ambiente", "")),
+        "dimensions": {
+            "premium": r.get("dimension_premium", 0),
+            "social": r.get("dimension_social", 0),
+            "comfort": r.get("dimension_comfort", 0),
+            "exploration": r.get("dimension_exploration", 0),
+            "romantic": r.get("dimension_romantic", 0),
+            "nightlife": r.get("dimension_nightlife", 0),
+        },
         "prefs": {k: round(float(v) / 10.0, 2) for k, v in (r.get("prefs") or {}).items() if float(v) > 0},
         "nombre": r.get("nombre", ""),
+        "canonical_name": r.get("canonical_name", ""),
         "cocina": r.get("cocina", ""),
         "tipo": r.get("tipo", ""),
         "price_tier": r.get("price_tier", ""),
+        "zonas_disponibles": r.get("zonas_disponibles") or [r.get("zona", "")],
         "website_url": r.get("website_url", ""),
         "instagram_url": r.get("instagram_url", ""),
         "facebook_url": r.get("facebook_url", ""),

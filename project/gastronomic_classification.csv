@@ -1,0 +1,104 @@
+﻿nombre,primary_archetype,secondary_categories,cocina_principal,ambiente_label,gastronomic_personality,experience_style,dimension_premium,dimension_social,dimension_comfort,dimension_exploration,dimension_romantic,dimension_nightlife
+45 Grados,steakhouse_premium,steakhouse | premium | gourmet | business_dining | elegant,Steakhouse,elegante,Parrilla con tecnicas de coccion precisas,Steakhouse premium para carnivoros exigentes,8,6,5,4,5,3
+Ambia,asian_fusion_premium,trendy | social | premium | adventurous | dinner_experience,Peruana,trendy,Nikkei peruano audaz con presentacion de autor,Cena social premium con sabores cruzados y propuesta moderna,8,8,5,9,6,5
+Anadi2,fusion_premium,trendy | social | adventurous | casual | foodie,Fusion,trendy,Bistro fusion para compartir,Platos creativos en ambiente moderno,7,8,6,8,4,5
+Animal Gastro Bar,nightlife_social,nightlife | trendy | craft_beer | social | foodie,Internacional,nocturno,Gastrobar creativo con cocteleria,Salida nocturna con propuesta gastronomica,6,8,5,7,3,8
+Applebee's,american_casual_chain,family_friendly | comfort_food | casual | americana | social,Internacional,familiar,Cadena americana casual para grupos,Comida americana reconfortante en familia,3,7,8,3,3,4
+Atempo,premium_fine,gourmet | exclusive | romantic | slow_food | elegant,Fusion,elegante,Fine dining latinoeuropeo de temporada,Experiencia de lujo con menu degustacion y maridaje,10,5,5,7,9,3
+Barista,cafe_brunch,coffee_culture | aesthetic | casual | social | trendy,Cafe,trendy,Cafe de especialidad guatemalteco,Espresso de calidad en ambiente urbano,5,7,7,6,3,2
+Bento Box,asian_fast_casual,pref_japonesa | quick_meal | casual | comfort_food | fast_food,Japonesa,casual,Bento japones rapido,Comida japonesa accesible para llevar,2,5,6,4,2,2
+Bisque,french_bistro,gourmet | elegant | slow_food | romantic | wine_focus,Francesa,elegante,Bistro frances con sopas y pescados clasicos,Cena francesa refinada,8,5,5,5,7,3
+Bottega Foresto,italian_premium,trendy | aesthetic | wine_focus | premium | dinner_experience,Italiana,trendy,Bistro italiano contemporaneo con barra de vinos,"Cena italiana moderna, estetica y maridaje",9,7,6,8,7,5
+Burger King,fast_food,fast_food | quick_meal | comfort_food | casual | americana,Internacional,casual,Cadena global de hamburguesas,Comida rapida americana sin pretensiones,1,6,8,2,2,2
+Cafe Leon,cafe_brunch,coffee_culture | comfort_food | casual | traditional | family_friendly,Cafe,cozy,Cafe tradicional guatemalteco con panes frescos,Desayuno hogareño y cafe de barrio,3,6,9,3,4,2
+Caffe Milano,cafe_brunch,coffee_culture | pref_italiana | casual | aesthetic | social,Italiana,elegante,Cafe italiano con pastas ligeras,Espresso y cocina italiana casual,6,6,7,5,5,3
+Casa Chapina,guatemalteca_signature,pref_guatemalteca | traditional | family_friendly | comfort_food | cultural,Guatemalteca,familiar,Comida guatemalteca tradicional en Cayala,Sabores chapinos en ambiente acogedor,6,7,8,4,4,2
+Casa Escobar,steakhouse_premium,steakhouse | premium | traditional | business_dining | gourmet,Steakhouse,elegante,Tradicion steakhouse guatemalteca,Parrilla clasica con cortes premium,8,6,6,3,5,3
+Cerveceria 14,nightlife_social,craft_beer | nightlife | social | casual | lively,Internacional,nocturno,Cerveceria social en Zona 14,Cerveza artesanal y ambiente relajado,4,8,6,5,3,7
+Chili's,american_casual_chain,family_friendly | comfort_food | casual | americana | social,Internacional,familiar,Cadena americana de burgers y ribs,Comida americana casual para grupos,4,7,8,3,3,4
+China Wok,asian_fast_casual,asian_fusion | quick_meal | comfort_food | casual | fast_food,Asiatica,casual,Comida china rapida y accesible,Wok rapido para comer bien sin complicaciones,2,6,7,3,2,2
+Cielito Lindo,mexican_casual_chain,pref_mexicana | family_friendly | comfort_food | casual | traditional,Mexicana,familiar,Mexicana tradicional colorida,Comida mexicana accesible y festiva,3,7,8,4,3,3
+Cinnabon,cafe_brunch,dessert | comfort_food | casual | quick_meal | family_friendly,Cafe,casual,Reposteria dulce de mall,Rollos de canela y cafe dulce,2,5,7,2,2,2
+Comida China Moon,asian_fast_casual,asian_fusion | family_friendly | comfort_food | casual | quick_meal,Asiatica,familiar,Buffet chino accesible,Comida china abundante para compartir,2,7,7,3,2,2
+De Cero,healthy_casual,saludable | healthy_fast | quick_meal | casual | aesthetic,Saludable,casual,Ensaladas y bowls personalizables frescos,Comida saludable rapida y customizable,4,5,6,5,2,1
+Del Griego,mediterranean_premium,pref_mediterranea | saludable | premium | elegant | slow_food,Mediterranea,elegante,Identidad griega mediterranea,Sabores del Egeo con elegancia,7,6,6,5,6,3
+Del Principe,italian_premium,pref_italiana | wine_focus | elegant | romantic | slow_food,Italiana,elegante,Italiana clasica refinada,Cena italiana con servicio formal,8,5,6,4,7,3
+Denny's,american_casual_chain,comfort_food | quick_meal | family_friendly | casual | americana,Internacional,familiar,Diner americano 24 horas,Comida reconfortante a cualquier hora,2,6,8,2,3,3
+Diaca,fusion_premium,gourmet | trendy | cultural | premium | dinner_experience,Fusion,trendy,Cocina de autor guatemalteca con mirada global,Cena creativa premium con identidad local,9,6,5,8,6,4
+Domino's Pizza,fast_food,quick_meal | comfort_food | fast_food | casual | family_friendly,Internacional,casual,Pizza a domicilio y local rapido,Pizza comoda para compartir en casa o local,2,6,8,2,3,2
+Dumbo,fusion_premium,trendy | aesthetic | casual | social | adventurous,Internacional,trendy,Bistro internacional relajado,Propuesta moderna sin formalidad,6,7,7,7,4,4
+Dunkin,cafe_brunch,coffee_culture | quick_meal | casual | comfort_food | dessert,Cafe,casual,Cafe y donas rapidas de cadena,Pausa dulce y cafe sin complicaciones,2,5,7,2,2,2
+El Adobe,guatemalteca_signature,pref_guatemalteca | traditional | comfort_food | family_friendly | cultural,Guatemalteca,familiar,Sabores chapinos en ambiente rustico,Guatemalteca acogedora y tradicional,6,7,9,4,5,2
+El Arte Steak House,steakhouse_premium,steakhouse | premium | business_dining | elegant | gourmet,Steakhouse,elegante,Steakhouse formal con cortes selectos,Parrilla premium de servicio cuidado,9,6,5,4,5,3
+El Invernadero,healthy_casual,saludable | aesthetic | trendy | brunch | casual,Saludable,trendy,Cocina vegetal organica luminosa,"Saludable, fresca y fotogenica",5,6,6,7,3,2
+Eskimo,cafe_brunch,dessert | family_friendly | comfort_food | traditional | casual,Cafe,familiar,Helados tradicion guatemalteca,Postre familiar de siempre,2,7,8,2,3,2
+Estacion Santo Domingo,fusion_premium,elegant | wine_focus | premium | romantic | dinner_experience,Internacional,elegante,Bistro internacional en entorno historico,Cena elegante con contexto patrimonial,8,6,6,5,7,4
+Fiore Pasta Bar,italian_casual,pref_italiana | trendy | casual | social | aesthetic,Italiana,trendy,Pastas frescas en barra abierta,Italiana casual moderna,5,7,7,6,4,3
+Fiorellino,italian_casual,pref_italiana | comfort_food | casual | family_friendly | cozy,Italiana,cozy,Pastas y pizzas acogedoras,Italiana de barrio calida,4,6,8,3,5,2
+Frida Kahlo,mexican_signature,pref_mexicana | trendy | aesthetic | social | lively,Mexicana,trendy,Mexicana autentica con diseno vibrante,Cena mexicana premium-festiva con identidad fuerte,7,8,7,7,5,6
+Gracia Cocina de Autor,premium_fine,gourmet | exclusive | cultural | traditional | slow_food,Fusion,elegante,Alta cocina guatemalteca de autor,Experiencia exclusiva con tecnica moderna y raices locales,10,5,5,8,7,2
+Gramo,fusion_premium,trendy | casual | adventurous | social | foodie,Internacional,trendy,Bistro contemporaneo accesible,Autor accesible con espiritu urbano,6,7,6,7,4,4
+Gusta,healthy_casual,saludable | brunch | casual | aesthetic | quick_meal,Saludable,brunch,Bowls y opciones frescas,Saludable rapido para el dia a dia,4,5,6,5,2,1
+Hacienda Real,steakhouse_premium,steakhouse | premium | business_dining | gourmet | traditional,Steakhouse,elegante,Icono steakhouse guatemalteco con cortes premium,Parrilla de referencia nacional para ocasiones importantes,9,7,6,4,5,4
+Hard Rock Cafe,nightlife_social,nightlife | americana | social | lively | comfort_food,Internacional,nocturno,Cadena rockera con musica en vivo y burgers,Experiencia americana social y nocturna,6,9,7,5,3,8
+Hibachi,japanese_premium,pref_japonesa | show_dining | premium | social | business_dining,Japonesa,elegante,Teppanyaki con show en vivo y ambiente sofisticado,Cena japonesa premium con experiencia en plancha,8,8,5,6,5,4
+IHOP,cafe_brunch,brunch | family_friendly | comfort_food | casual | americana,Internacional,familiar,Desayunos y pancakes todo el dia,Brunch americano familiar,3,7,8,3,3,2
+Il Forno,italian_casual,pref_italiana | family_friendly | comfort_food | casual | traditional,Italiana,familiar,Pizza al horno de lena familiar,Italiana rustica para compartir,4,7,8,3,4,2
+Isabelle,french_bistro,elegant | romantic | wine_focus | gourmet | dinner_experience,Francesa,romantico,Bistro frances con postres y vinos,Francesa romantica y refinada,8,5,6,5,8,3
+Jake's,nightlife_social,nightlife | craft_beer | social | trendy | foodie,Internacional,nocturno,Gastrobar con cocteleria creativa,Noche social con platos para compartir,6,8,5,7,3,8
+Kacao,guatemalteca_signature,cultural | comfort_food | family_friendly | traditional | premium_local,Guatemalteca,elegante,Alta cocina guatemalteca con orgullo local,Experiencia premium que celebra sabores y tradicion nacional,8,7,8,6,6,3
+Kaffeine,cafe_brunch,coffee_culture | aesthetic | brunch | casual | social,Cafe,brunch,Cafe de especialidad con reposteria cuidada,Brunch y cafe de autor en ambiente luminoso,5,7,8,7,4,2
+KFC,fast_food,fast_food | quick_meal | family_friendly | comfort_food | americana,Internacional,familiar,Pollo frito de cadena global,Fast food de pollo para todos,2,7,7,2,2,2
+L'Oliveto,italian_premium,pref_italiana | slow_food | romantic | traditional | wine_focus,Italiana,romantico,Italiana tradicional con oliva y pasta fresca,Cena italiana autentica y pausada,7,5,7,4,8,3
+La Estancia,steakhouse_premium,steakhouse | premium | business_dining | elegant | traditional,Steakhouse,elegante,Parrilla clasica para ocasiones especiales,Steakhouse de referencia,8,6,5,3,5,3
+La Finka,guatemalteca_signature,pref_guatemalteca | trendy | cultural | comfort_food | casual,Guatemalteca,trendy,Guatemalteca contemporanea urbana,Tradicion chapina con mirada moderna,6,7,7,6,4,3
+La Pampa,steakhouse_premium,steakhouse | premium | gourmet | traditional | social,Steakhouse,elegante,Parrilla argentina con empanadas,Asado y carnes con espiritu porteno,8,7,6,4,4,4
+La Veinte,mexican_signature,pref_mexicana | lively | trendy | social | nightlife,Mexicana,trendy,Mexicana contemporanea festiva,Cena mexicana con energia y diseno,7,8,6,6,4,7
+Le Crepe,cafe_brunch,brunch | romantic | comfort_food | casual | aesthetic,Francesa,cozy,Creperie parisina acogedora,Crepes dulces y salados en ambiente cozy,4,5,8,5,7,2
+Little Caesars,fast_food,quick_meal | fast_food | comfort_food | family_friendly | casual,Internacional,familiar,Pizza rapida economica,Pizza lista para llevar sin espera,1,6,7,2,2,2
+Los Cebollines,mexican_casual_chain,pref_mexicana | family_friendly | comfort_food | quick_meal | casual,Mexicana,familiar,Cadena mexicana guatemalteca accesible y familiar,Comida mexicana rapida para compartir en familia,2,7,8,3,3,2
+Los Tres Tiempos,guatemalteca_signature,pref_guatemalteca | traditional | comfort_food | family_friendly | premium_local,Guatemalteca,familiar,Guatemalteca moderna con porciones generosas,Tradicion chapina bien ejecutada,7,7,8,5,5,3
+Mansión del Río,premium_fine,hotel_dining | elegant | romantic | gourmet | business_dining,Internacional,elegante,Restaurante de hotel con vista,Internacional refinada en contexto hotelero,9,5,5,5,8,4
+Mantarraya,mediterranean_premium,seafood | gourmet | romantic | elegant | slow_food,Mariscos,elegante,Mariscos frescos y ceviches,Mar y pescado en ambiente sofisticado,8,6,5,5,7,3
+Marena,mediterranean_premium,pref_mediterranea | saludable | premium | elegant | slow_food,Mediterranea,elegante,Mediterraneo refinado con pescado y producto de temporada,"Cena elegante con aceite de oliva, mar y vegetales",9,6,6,6,7,3
+McDonald's,fast_food,fast_food | quick_meal | family_friendly | comfort_food | casual,Internacional,familiar,Icono global de comida rapida,Opcion rapida universal para cualquier momento,1,7,8,2,2,2
+Mercado 24,fusion_premium,trendy | social | nightlife | adventurous | foodie,Internacional,trendy,Food hall vibrante con multiples conceptos,Salida social para probar de todo en ambiente urbano y dinamico,7,9,6,9,4,8
+Milagrito,nightlife_social,pref_mexicana | nightlife | lively | social | casual,Mexicana,nocturno,Cantina mexicana festiva,Noche mexicana con tequila y ambiente,4,8,6,5,3,8
+Monoloco,nightlife_social,nightlife | social | lively | craft_beer | americana,Internacional,nocturno,Bar-restaurante iconico con musica en vivo,Salida nocturna social con comida y ambiente festivo,6,9,6,6,4,9
+Nifu Nifa,asian_fast_casual,asian_fusion | casual | comfort_food | family_friendly | quick_meal,Asiatica,casual,Dim sum cantones casual,Comida china para compartir sin formalidad,3,7,7,4,2,2
+Nikkei,asian_fusion_premium,asian_fusion | adventurous | trendy | premium | dinner_experience,Peruana,trendy,Nikkei peruano-japones reconocido,Fusion audaz de alto nivel,8,7,5,9,5,5
+Nuestra Cerveceria,nightlife_social,craft_beer | social | nightlife | casual | foodie,Internacional,nocturno,Cerveza artesanal guatemalteca,Brewpub local con platos para compartir,4,9,6,6,3,7
+Olive Garden,italian_casual,pref_italiana | family_friendly | comfort_food | casual | americana,Italiana,familiar,Cadena italiana familiar con pastas reconfortantes,Comida italiana casual para salidas en familia,4,7,8,3,4,2
+Outback Steakhouse,steakhouse_premium,steakhouse | family_friendly | premium | comfort_food | casual,Steakhouse,familiar,Steakhouse de cadena con cortes generosos,Parrilla americana premium-casual para familia o grupos,7,7,8,4,4,3
+P.F. Chang's,asian_fusion_premium,asian_fusion | business_dining | premium | social | casual,Asiatica,elegante,Cadena asiatica contemporanea premium,Cena asiatica accesible-premium para grupos y negocios,7,7,6,6,4,4
+Paisano,italian_casual,pref_italiana | comfort_food | family_friendly | casual | traditional,Italiana,familiar,Trattoria italiana accesible,Italiana de barrio para toda la familia,4,7,8,3,4,2
+Paligo,fusion_premium,business_dining | elegant | premium | wine_focus | dinner_experience,Internacional,elegante,Bistro internacional formal,Carta variada con servicio cuidado,7,6,5,4,5,4
+Papa John's,fast_food,quick_meal | comfort_food | casual | family_friendly | americana,Internacional,casual,Pizza delivery de cadena,Pizza americana para compartir,2,6,8,2,3,2
+Pecorino,italian_premium,pref_italiana | wine_focus | slow_food | romantic | dinner_experience,Italiana,romantico,Ristorante de pastas artesanales y cenas largas,Experiencia italiana premium para compartir y disfrutar sin prisa,8,6,6,5,8,3
+Pizza Hut,fast_food,comfort_food | family_friendly | quick_meal | casual | americana,Internacional,familiar,Pizzeria de cadena internacional,Pizza familiar rapida,2,7,8,2,3,2
+Pollo Campero,guatemalteca_fast,pref_guatemalteca | family_friendly | comfort_food | quick_meal | casual,Guatemalteca,familiar,Icono nacional de pollo frito guatemalteco,Comida rapida con orgullo guatemalteco,2,8,9,3,3,2
+Porcino,steakhouse_premium,steakhouse | premium | gourmet | business_dining | elegant,Italiana,elegante,Cortes premium con alma italiana,Steakhouse de lujo en Cayala,9,6,5,4,5,3
+Portal del Angel,premium_fine,elegant | business_dining | gourmet | romantic | wine_focus,Internacional,elegante,Fine dining internacional en Fontabella,Cena refinada para negocios o ocasion especial,9,6,5,5,8,4
+Punto Mediterraneo,mediterranean_premium,pref_mediterranea | seafood | saludable | elegant | slow_food,Mediterranea,elegante,Mediterraneo con pescados y pastas,"Mar, oliva y sabores del sur",7,6,6,5,6,3
+Renata,cafe_brunch,dessert | coffee_culture | family_friendly | aesthetic | comfort_food,Cafe,familiar,Pasteleria fina en Cayala,Reposteria artesanal y cafe,5,7,8,5,4,2
+Rincon del Steak,steakhouse_premium,steakhouse | premium | business_dining | comfort_food | traditional,Steakhouse,elegante,Parrilla reconocida para carnivoros,Carne como protagonista,7,6,6,3,4,3
+Rustica,italian_casual,pref_italiana | comfort_food | family_friendly | casual | traditional,Italiana,familiar,Pizza rustica al lena,Italiana sencilla y honesta,4,6,8,3,3,2
+Saint Honore,french_bistro,aesthetic | elegant | dessert | brunch | premium,Francesa,elegante,Pasteleria francesa y platos ligeros,Francesa dulce y refinada,6,6,7,6,5,3
+San Martin,cafe_brunch,family_friendly | coffee_culture | comfort_food | casual | bakery,Cafe,familiar,Panaderia-cafe iconica para toda la familia,"Desayuno, pan fresco y comida reconfortante sin pretensiones",4,8,9,4,4,2
+Sarita,cafe_brunch,dessert | family_friendly | comfort_food | casual | traditional,Cafe,familiar,Heladeria iconica guatemalteca,Postre familiar y tradicion dulce local,2,7,8,2,3,2
+Saúl,cafe_brunch,coffee_culture | aesthetic | casual | brunch | social,Internacional,trendy,Bistro creativo con alma de cafe y brunch urbano,"Brunch aesthetic, cafe de calidad y platos de autor relajados",7,8,7,7,5,3
+Shiro,japanese_premium,pref_japonesa | gourmet | premium | exclusive | elegant,Japonesa,elegante,Sushi y cocina japonesa de maximo nivel,Experiencia japonesa premium para paladares exigentes,10,5,4,7,7,3
+Starbucks,cafe_brunch,coffee_culture | casual | aesthetic | social | comfort_food,Cafe,casual,Cafe de cadena global con ritual diario,"Cafe, reposteria y pausa social",4,7,7,5,3,3
+Sublime,premium_fine,gourmet | romantic | exclusive | slow_food | wine_focus,Fusion,romantico,Experiencia de autor con maridaje,Fine dining para paladares exigentes,10,5,5,7,9,3
+Subway,fast_food,quick_meal | saludable | fast_food | casual | comfort_food,Internacional,casual,Sandwiches personalizables rapidos,Opcion rapida percibida como mas ligera,1,5,6,3,2,1
+Tablon del 8,steakhouse_premium,steakhouse | premium | business_dining | gourmet | elegant,Steakhouse,elegante,Parrilla de alto nivel,Steakhouse premium de referencia,9,6,5,4,5,3
+Taco Bell,fast_food,pref_mexicana | quick_meal | fast_food | casual | comfort_food,Internacional,casual,Mexicana rapida de cadena internacional,Tacos y burritos fast food,1,6,7,3,2,2
+Tamarindos,premium_fine,gourmet | romantic | exclusive | elegant | slow_food,Fusion,romantico,Fine dining de autor con identidad guatemalteca,Experiencia gastronomica de lujo para ocasiones especiales,10,6,5,8,9,4
+TGI Friday's,nightlife_social,nightlife | lively | americana | social | casual,Internacional,nocturno,Bar-restaurante americano festivo,Noche americana con ambiente animado,4,8,7,4,3,7
+Tip Top,guatemalteca_fast,pref_guatemalteca | comfort_food | family_friendly | quick_meal | casual,Internacional,familiar,Cadena guatemalteca de comida rapida tradicional,Rapido con sabor local,2,7,8,3,3,2
+Tony Roma's,american_casual_chain,comfort_food | family_friendly | americana | casual | social,Internacional,familiar,Costillas BBQ iconicas,Americana reconfortante de cadena,4,7,8,3,3,4
+Tre Fratelli,italian_premium,pref_italiana | wine_focus | slow_food | romantic | business_dining,Italiana,elegante,Trattoria italiana elegante con alma de casa,Cena italiana clasicamente premium con vino y servicio cuidado,8,7,6,5,8,4
+Tul y Tul,fusion_premium,romantic | elegant | premium | social | dinner_experience,Internacional,romantico,Bistro con terraza refinada,Internacional romantica al aire libre,8,6,6,5,8,4
+Wendy's,fast_food,fast_food | quick_meal | comfort_food | casual | americana,Internacional,casual,Hamburguesas y frosty de cadena americana,Fast food clasico para comer rapido,1,6,8,2,2,2
+Wok to Walk,asian_fast_casual,asian_fusion | quick_meal | casual | street_food | fast_food,Asiatica,casual,Wok personalizable de servicio rapido,Comida asiatica walk-and-eat,2,5,6,4,2,2
+Zest,fusion_premium,trendy | aesthetic | adventurous | casual | foodie,Internacional,trendy,Internacional con toques citricos,Bistro urbano fresco y moderno,6,7,6,7,4,4

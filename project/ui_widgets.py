@@ -420,9 +420,27 @@ class RestaurantCard(tk.Frame):
         )
         name_lbl.pack(fill=tk.X)
         _bind_link_widget(name_lbl, open_primary, base_bg=COLORS["surface2"], hover_bg=COLORS["accent_light"])
+        zonas = [z for z in (data.get("zonas_disponibles") or []) if z]
+        if not zonas and data.get("zona"):
+            zonas = [data.get("zona")]
+        zonas_txt = ", ".join(zonas[:5])
+        if len(zonas) > 5:
+            zonas_txt += " +%d" % (len(zonas) - 5)
+        primary = (
+            data.get("primary_archetype")
+            or data.get("rest_archetype")
+            or data.get("semantic_archetype")
+            or ""
+        ).replace("_", " ")
+        secondaries = [c.replace("_", " ") for c in (data.get("secondary_categories") or [])[:3]]
+        meta_line = "📍 %s   ⭐ %.1f   💎 %s" % (zonas_txt or "—", float(data.get("rating") or 0), tier)
+        if primary:
+            meta_line += "   🏷 %s" % primary
+        if secondaries:
+            meta_line += "   + %s" % ", ".join(secondaries)
         tk.Label(
             info,
-            text="📍 %s   ⭐ %.1f   💎 %s" % (data.get("zona") or "—", float(data.get("rating") or 0), tier),
+            text=meta_line,
             font=FONTS["small"],
             fg=COLORS["subtext"],
             bg=COLORS["surface2"],

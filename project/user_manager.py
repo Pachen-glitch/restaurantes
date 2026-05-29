@@ -26,6 +26,7 @@ PREFERENCE_CATALOG = [
     "sabor_umami",
     "sabor_fresco",
     "comida_rapida",
+    "quick_meal",
     "slow_food",
     "saludable",
     "contundente",

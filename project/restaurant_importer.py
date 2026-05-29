@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from database import get_session
 from restaurants_guatemala import (
+    BRANCH_TO_CANONICAL_ID,
     CUISINES,
     LEGACY_RESTAURANT_ID_PREFIXES,
     RESTAURANTS,
@@ -53,6 +54,36 @@ def purge_legacy_restaurants() -> dict[str, int]:
             """
         ).single()
         stats["removed"] = int((result or {}).get("removed") or 0)
+
+    return stats
+
+
+def migrate_visits_to_canonical(branch_map: dict[str, str]) -> dict[str, int]:
+    """Reasigna VISITED de sucursales gc_* al restaurante canonico cn_*."""
+    stats = {"migrated": 0, "skipped": 0}
+    if not branch_map:
+        return stats
+
+    with get_session() as session:
+        for old_id, new_id in branch_map.items():
+            if old_id == new_id:
+                stats["skipped"] += 1
+                continue
+            result = session.run(
+                """
+                MATCH (u:User)-[v:VISITED]->(old:Restaurant {id: $old_id})
+                MATCH (new:Restaurant {id: $new_id})
+                MERGE (u)-[nv:VISITED]->(new)
+                SET nv.fecha = coalesce(v.fecha, nv.fecha),
+                    nv.calificacion_personal = coalesce(v.calificacion_personal, nv.calificacion_personal)
+                WITH v
+                DELETE v
+                RETURN count(*) AS n
+                """,
+                old_id=old_id,
+                new_id=new_id,
+            ).single()
+            stats["migrated"] += int((result or {}).get("n") or 0)
 
     return stats
 
@@ -114,18 +145,35 @@ def _collect_pref_edges() -> tuple[set[str], list[dict]]:
 
 
 def _restaurant_payload(restaurant: dict) -> dict:
+    zonas = list(restaurant.get("zonas_disponibles") or [])
+    if not zonas and restaurant.get("zona"):
+        zonas = [restaurant["zona"]]
     return {
         "id": restaurant["id"],
         "nombre": restaurant["nombre"],
+        "canonical_name": restaurant.get("canonical_name", ""),
         "rating": float(restaurant["rating"]),
         "precio": int(restaurant["precio"]),
-        "zona": restaurant["zona"],
+        "zona": restaurant.get("zona") or (zonas[0] if zonas else ""),
+        "zonas_disponibles": zonas,
         "cocina": restaurant["cocina"],
         "tipo": restaurant.get("tipo", ""),
         "ambiente": restaurant.get("ambiente", "casual"),
         "price_tier": restaurant.get("price_tier", "casual"),
         "descripcion": restaurant.get("descripcion", ""),
         "semantic_archetype": restaurant.get("semantic_archetype", ""),
+        "primary_archetype": restaurant.get("primary_archetype", restaurant.get("semantic_archetype", "")),
+        "secondary_categories": list(restaurant.get("secondary_categories") or []),
+        "gastronomic_personality": restaurant.get("gastronomic_personality", ""),
+        "experience_style": restaurant.get("experience_style", ""),
+        "cocina_principal": restaurant.get("cocina_principal", restaurant.get("cocina", "")),
+        "ambiente_label": restaurant.get("ambiente_label", restaurant.get("ambiente", "")),
+        "dimension_premium": int(restaurant.get("dimension_premium") or 0),
+        "dimension_social": int(restaurant.get("dimension_social") or 0),
+        "dimension_comfort": int(restaurant.get("dimension_comfort") or 0),
+        "dimension_exploration": int(restaurant.get("dimension_exploration") or 0),
+        "dimension_romantic": int(restaurant.get("dimension_romantic") or 0),
+        "dimension_nightlife": int(restaurant.get("dimension_nightlife") or 0),
         "nightlife_score": int(restaurant.get("nightlife_score") or 0),
         "social_score": int(restaurant.get("social_score") or 0),
         "premium_score": int(restaurant.get("premium_score") or 0),
@@ -147,6 +195,7 @@ def _batch_import_restaurants(session, batch: list[dict]) -> None:
         UNWIND $restaurantes AS r
         MERGE (rest:Restaurant {id: r.id})
         SET rest.nombre = r.nombre,
+            rest.canonical_name = r.canonical_name,
             rest.rating = r.rating,
             rest.precio = r.precio,
             rest.ambiente = r.ambiente,
@@ -154,6 +203,18 @@ def _batch_import_restaurants(session, batch: list[dict]) -> None:
             rest.price_tier = r.price_tier,
             rest.descripcion = r.descripcion,
             rest.semantic_archetype = r.semantic_archetype,
+            rest.primary_archetype = r.primary_archetype,
+            rest.secondary_categories = r.secondary_categories,
+            rest.gastronomic_personality = r.gastronomic_personality,
+            rest.experience_style = r.experience_style,
+            rest.cocina_principal = r.cocina_principal,
+            rest.ambiente_label = r.ambiente_label,
+            rest.dimension_premium = r.dimension_premium,
+            rest.dimension_social = r.dimension_social,
+            rest.dimension_comfort = r.dimension_comfort,
+            rest.dimension_exploration = r.dimension_exploration,
+            rest.dimension_romantic = r.dimension_romantic,
+            rest.dimension_nightlife = r.dimension_nightlife,
             rest.nightlife_score = r.nightlife_score,
             rest.social_score = r.social_score,
             rest.premium_score = r.premium_score,
@@ -165,13 +226,19 @@ def _batch_import_restaurants(session, batch: list[dict]) -> None:
             rest.instagram_url = r.instagram_url,
             rest.facebook_url = r.facebook_url,
             rest.maps_url = r.maps_url,
-            rest.search_url = r.search_url
-        WITH rest, r
-        MATCH (z:Zone {nombre: r.zona})
-        MERGE (rest)-[:LOCATED_IN]->(z)
+            rest.search_url = r.search_url,
+            rest.zonas_disponibles = r.zonas_disponibles,
+            rest.zona = r.zona
         WITH rest, r
         MATCH (c:Cuisine {nombre: r.cocina})
         MERGE (rest)-[:HAS_CUISINE]->(c)
+        WITH rest, r
+        OPTIONAL MATCH (rest)-[old:LOCATED_IN]->(:Zone)
+        DELETE old
+        WITH rest, r
+        UNWIND r.zonas_disponibles AS zona_nombre
+        MATCH (z:Zone {nombre: zona_nombre})
+        MERGE (rest)-[:LOCATED_IN]->(z)
         """,
         restaurantes=batch,
     )
@@ -206,19 +273,16 @@ def _batch_import_pref_edges(session, batch: list[dict]) -> None:
 
 def import_guatemala_restaurants(replace_legacy: bool = True) -> dict[str, int | str]:
     """
-    Reemplaza catalogo antiguo/fake e importa restaurantes reales de Guatemala.
-    Usa MERGE y lotes para mantener rendimiento en AuraDB.
+    Reemplaza catalogo antiguo/fake e importa restaurantes canonicos a Neo4j.
+    Consolida sucursales y migra visitas de ids gc_* a cn_*.
     """
     valid_ids = {restaurant["id"] for restaurant in RESTAURANTS}
-    purge_stats = {"legacy_removed": 0, "stale_removed": 0, "kept_with_visits": 0}
+    purge_stats = {"legacy_removed": 0, "stale_removed": 0, "kept_with_visits": 0, "visits_migrated": 0}
 
     if replace_legacy:
         legacy = purge_legacy_restaurants()
         purge_stats["legacy_removed"] = legacy["removed"]
         purge_stats["kept_with_visits"] += legacy["kept_with_visits"]
-        stale = purge_stale_restaurants(valid_ids)
-        purge_stats["stale_removed"] = stale["removed"]
-        purge_stats["kept_with_visits"] += stale["kept_with_visits"]
 
     validation = validate_restaurant_catalog(RESTAURANTS)
     if not validation["valid"]:
@@ -245,6 +309,13 @@ def import_guatemala_restaurants(replace_legacy: bool = True) -> dict[str, int |
 
         for i in range(0, len(pref_edges), BATCH_SIZE * 3):
             _batch_import_pref_edges(session, pref_edges[i : i + BATCH_SIZE * 3])
+
+    if replace_legacy:
+        migrate_stats = migrate_visits_to_canonical(BRANCH_TO_CANONICAL_ID)
+        purge_stats["visits_migrated"] = migrate_stats["migrated"]
+        stale = purge_stale_restaurants(valid_ids)
+        purge_stats["stale_removed"] = stale["removed"]
+        purge_stats["kept_with_visits"] += stale["kept_with_visits"]
 
     return {
         "imported": len(RESTAURANTS),
