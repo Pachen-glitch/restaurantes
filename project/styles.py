@@ -56,17 +56,40 @@ def compat_color(pct: float) -> str:
 
 
 FONTS = {
-    "title": ("Segoe UI", 22, "bold"),
-    "subtitle": ("Segoe UI", 13, "bold"),
+    "brand": ("Segoe UI", 20, "bold"),
+    "title": ("Segoe UI", 20, "bold"),
+    "subtitle": ("Segoe UI", 12),
     "body": ("Segoe UI", 11),
     "small": ("Segoe UI", 9),
-    "card": ("Segoe UI", 12),
-    "card_title": ("Segoe UI", 16, "bold"),
-    "hero": ("Segoe UI", 28, "bold"),
-    "question": ("Segoe UI", 17),
+    "card": ("Segoe UI", 11),
+    "card_title": ("Segoe UI", 15, "bold"),
+    "hero": ("Segoe UI", 22, "bold"),
+    "question": ("Segoe UI", 16),
     "nav": ("Segoe UI", 11),
     "badge": ("Segoe UI", 9, "bold"),
-    "header_tag": ("Segoe UI", 10),
+    "header_tag": ("Segoe UI", 11),
+    "option": ("Segoe UI", 12),
+    "option_emoji": ("Segoe UI Emoji", 28),
+    "option_compact": ("Segoe UI", 11),
+}
+
+ONBOARDING = {
+    "card_min_height": 132,
+    "card_pad_x": 18,
+    "card_pad_y": 16,
+    "card_gap": 14,
+    "list_min_height": 56,
+}
+
+SPACING = {
+    "header_height": 68,
+    "page_x": 36,
+    "page_pad": (36, 32),
+    "section_gap": 20,
+    "hero_pad_x": 32,
+    "hero_pad_y": 28,
+    "card_pad_x": 26,
+    "card_pad_y": 24,
 }
 
 
@@ -86,8 +109,8 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
     style.configure("Card.TLabel", background=c["surface2"], foreground=c["text"], font=FONTS["card"])
     style.configure("Title.TLabel", background=c["header"], foreground=c["accent"], font=FONTS["title"])
     style.configure("Subtitle.TLabel", background=c["bg"], foreground=c["subtext"], font=FONTS["subtitle"])
-    style.configure("Muted.TLabel", background=c["surface2"], foreground=c["muted"], font=FONTS["small"])
-    style.configure("Hero.TLabel", background=c["bg"], foreground=c["text"], font=FONTS["hero"])
+    style.configure("Muted.TLabel", background=c["bg"], foreground=c["muted"], font=FONTS["small"])
+    style.configure("Hero.TLabel", background=c["bg"], foreground=c["text"], font=FONTS["title"])
     style.configure("Question.TLabel", background=c["bg"], foreground=c["text"], font=FONTS["question"])
     style.configure("Step.TLabel", background=c["surface2"], foreground=c["accent"], font=FONTS["subtitle"])
 
@@ -126,9 +149,12 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
         "OptionCard.TButton",
         background=c["surface2"],
         foreground=c["text"],
-        padding=(22, 18),
-        font=FONTS["card"],
+        padding=(24, 22),
+        font=FONTS["option"],
         borderwidth=1,
+        wraplength=220,
+        anchor=tk.CENTER,
+        justify=tk.CENTER,
     )
     style.map(
         "OptionCard.TButton",
@@ -139,6 +165,10 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
         background=c["accent"],
         foreground=c["text_light"],
         font=("Segoe UI", 12, "bold"),
+        padding=(24, 22),
+        wraplength=220,
+        anchor=tk.CENTER,
+        justify=tk.CENTER,
     )
     style.map("Selected.OptionCard.TButton", background=[("active", c["accent2"])])
 

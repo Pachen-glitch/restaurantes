@@ -1,4 +1,4 @@
-"""Motor de recomendaciones basado en grafos."""
+"""Motor de recomendaciones gastronomicas basado en afinidades reales."""
 
 from __future__ import annotations
 
@@ -295,11 +295,57 @@ PREF_LABELS_ES = {
     "flavor_focus": "intensidad de sabor",
     "service_focus": "servicio destacado",
     "price_focus": "buena relacion precio-calidad",
+    "fast_food": "comida rapida",
+    "comida_rapida": "menus rapidos",
 }
+
+# Prefs que no deben mostrarse segun el perfil semantico del restaurante.
+_EXPLANATION_BLOCKLIST = {
+    "fast_food": {
+        "pref_italiana",
+        "pref_japonesa",
+        "pref_coreana",
+        "pref_mediterranea",
+        "gourmet",
+        "exclusive",
+        "romantic",
+        "intimate",
+        "wine_focus",
+        "slow_food",
+        "business_dining",
+        "elegant",
+        "premium",
+    },
+    "italian": {"fast_food", "comida_rapida", "street_food"},
+}
+
+
+def _restaurant_semantic_profile(rest_prefs: dict[str, float]) -> set[str]:
+    profiles: set[str] = set()
+    if rest_prefs.get("fast_food", 0) >= 0.65 or rest_prefs.get("comida_rapida", 0) >= 0.65:
+        profiles.add("fast_food")
+    if rest_prefs.get("pref_italiana", 0) >= 0.65:
+        profiles.add("italian")
+    return profiles
+
+
+def _pref_allowed_for_restaurant(pref: str, rest_prefs: dict[str, float]) -> bool:
+    profiles = _restaurant_semantic_profile(rest_prefs)
+    for profile in profiles:
+        blocked = _EXPLANATION_BLOCKLIST.get(profile, set())
+        if pref in blocked:
+            return False
+    if "fast_food" in profiles and pref in _EXPLANATION_BLOCKLIST["fast_food"]:
+        return False
+    return True
 
 
 def _restaurant_headline(nombre: str, tipo: str, rest_prefs: dict[str, float]) -> str:
     tipo_l = (tipo or "").lower()
+    if rest_prefs.get("fast_food", 0) >= 0.65 or rest_prefs.get("comida_rapida", 0) >= 0.65:
+        return "Te recomendamos %s para una comida rapida y casual porque:" % nombre
+    if rest_prefs.get("pref_italiana", 0) >= 0.75:
+        return "Te recomendamos %s por su propuesta italiana porque:" % nombre
     if rest_prefs.get("rooftop", 0) >= 0.7 and (
         rest_prefs.get("pref_japonesa", 0) >= 0.7 or "sushi" in tipo_l or "japon" in tipo_l
     ):
@@ -332,6 +378,8 @@ def generar_explicacion(
         w = rest_prefs.get(pref)
         if w is None or w < 0.45 or u_score < 4.0:
             continue
+        if not _pref_allowed_for_restaurant(pref, rest_prefs):
+            continue
         coincidencias.append((pref, u_score * w))
     coincidencias.sort(key=lambda x: -x[1])
 
@@ -359,7 +407,10 @@ def generar_explicacion(
     if rest_prefs.get("pref_japonesa", 0) >= 0.7 and user_prefs.get("pref_japonesa", 0) >= 6:
         bullets.append("tienes alta afinidad con comida asiatica y japonesa")
     if rest_prefs.get("pref_italiana", 0) >= 0.7 and user_prefs.get("pref_italiana", 0) >= 6:
-        bullets.append("te atrae la cocina italiana")
+        if _pref_allowed_for_restaurant("pref_italiana", rest_prefs):
+            bullets.append("te atrae la cocina italiana")
+    if rest_prefs.get("fast_food", 0) >= 0.65 and user_prefs.get("fast_food", 0) >= 5:
+        bullets.append("buscas opciones rapidas y accesibles")
     if rest_prefs.get("premium", 0) >= 0.7 and user_prefs.get("premium", 0) >= 5:
         bullets.append("buscas experiencias premium")
     if rest_prefs.get("aesthetic", 0) >= 0.7 and user_prefs.get("aesthetic", 0) >= 5:
@@ -397,8 +448,11 @@ def _coincidencias_prefs(user_prefs: dict[str, float], rest_prefs: dict[str, flo
     out = []
     for pref, u_score in user_prefs.items():
         w = rest_prefs.get(pref)
-        if w is not None and w >= 0.5 and u_score >= 4.0:
-            out.append(pref)
+        if w is None or w < 0.5 or u_score < 4.0:
+            continue
+        if not _pref_allowed_for_restaurant(pref, rest_prefs):
+            continue
+        out.append(pref)
     out.sort(key=lambda p: -(user_prefs.get(p, 0) * rest_prefs.get(p, 0)))
     return out[:8]
 
@@ -619,7 +673,7 @@ def imprimir_recomendaciones(usuario_id, recs):
     for i, r in enumerate(recs, 1):
         cocinas = ", ".join(r.get("cocinas") or []) or "N/A"
         print(f"  #{i} {r['nombre']} ({r['id']})")
-        print(f"     Score IA: {r.get('score_total', 'N/A')} | Match pref: {r.get('match_pref', 'N/A')}")
+        print(f"     Compatibilidad: {r.get('score_total', 'N/A')} | Match pref: {r.get('match_pref', 'N/A')}")
         print(f"     Rating: {r['rating']} | Precio: Q{r['precio']} | Zona: {r.get('zona','N/A')}")
         print(f"     Cocinas: {cocinas}")
         print(f"     Usuarios similares: {r.get('usuarios_similares', r.get('similares', 0))} | Misma zona: {'Si' if r.get('misma_zona') else 'No'}")

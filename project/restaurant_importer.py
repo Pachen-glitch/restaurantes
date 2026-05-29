@@ -8,6 +8,7 @@ from restaurants_guatemala import (
     LEGACY_RESTAURANT_ID_PREFIXES,
     RESTAURANTS,
     ZONAS,
+    validate_restaurant_catalog,
 )
 
 BATCH_SIZE = 40
@@ -50,6 +51,39 @@ def purge_legacy_restaurants() -> dict[str, int]:
             DETACH DELETE r
             RETURN count(*) AS removed
             """
+        ).single()
+        stats["removed"] = int((result or {}).get("removed") or 0)
+
+    return stats
+
+
+def purge_stale_restaurants(valid_ids: set[str]) -> dict[str, int]:
+    """
+    Elimina restaurantes que no pertenecen al catalogo actual.
+    Conserva nodos con relaciones VISITED (historial de usuarios).
+    """
+    stats = {"removed": 0, "kept_with_visits": 0}
+    ids = list(valid_ids)
+
+    with get_session() as session:
+        kept = session.run(
+            """
+            MATCH (r:Restaurant)
+            WHERE NOT r.id IN $valid_ids AND (r)<-[:VISITED]-()
+            RETURN count(r) AS n
+            """,
+            valid_ids=ids,
+        ).single()
+        stats["kept_with_visits"] = int((kept or {}).get("n") or 0)
+
+        result = session.run(
+            """
+            MATCH (r:Restaurant)
+            WHERE NOT r.id IN $valid_ids AND NOT (r)<-[:VISITED]-()
+            DETACH DELETE r
+            RETURN count(*) AS removed
+            """,
+            valid_ids=ids,
         ).single()
         stats["removed"] = int((result or {}).get("removed") or 0)
 
@@ -144,13 +178,28 @@ def _batch_import_pref_edges(session, batch: list[dict]) -> None:
     )
 
 
-def import_guatemala_restaurants(replace_legacy: bool = True) -> int:
+def import_guatemala_restaurants(replace_legacy: bool = True) -> dict[str, int | str]:
     """
-    Reemplaza el catalogo antiguo e importa el nuevo dataset Guatemala.
+    Reemplaza catalogo antiguo/fake e importa restaurantes reales de Guatemala.
     Usa MERGE y lotes para mantener rendimiento en AuraDB.
     """
+    valid_ids = {restaurant["id"] for restaurant in RESTAURANTS}
+    purge_stats = {"legacy_removed": 0, "stale_removed": 0, "kept_with_visits": 0}
+
     if replace_legacy:
-        purge_legacy_restaurants()
+        legacy = purge_legacy_restaurants()
+        purge_stats["legacy_removed"] = legacy["removed"]
+        purge_stats["kept_with_visits"] += legacy["kept_with_visits"]
+        stale = purge_stale_restaurants(valid_ids)
+        purge_stats["stale_removed"] = stale["removed"]
+        purge_stats["kept_with_visits"] += stale["kept_with_visits"]
+
+    validation = validate_restaurant_catalog(RESTAURANTS)
+    if not validation["valid"]:
+        raise ValueError(
+            "Catalogo con clasificacion incoherente (%d casos). Ejemplo: %s"
+            % (len(validation["issues"]), validation["issues"][:2])
+        )
 
     all_prefs, pref_edges = _collect_pref_edges()
     restaurantes = [_restaurant_payload(r) for r in RESTAURANTS]
@@ -169,7 +218,11 @@ def import_guatemala_restaurants(replace_legacy: bool = True) -> int:
         for i in range(0, len(pref_edges), BATCH_SIZE * 3):
             _batch_import_pref_edges(session, pref_edges[i : i + BATCH_SIZE * 3])
 
-    return len(RESTAURANTS)
+    return {
+        "imported": len(RESTAURANTS),
+        "validation_ok": True,
+        **purge_stats,
+    }
 
 
 def legacy_id_prefixes() -> tuple[str, ...]:

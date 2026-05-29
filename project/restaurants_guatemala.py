@@ -1,8 +1,7 @@
-"""Catalogo realista de restaurantes de Ciudad de Guatemala para Neo4j."""
+"""Catalogo de restaurantes REALES de Ciudad de Guatemala para Neo4j."""
 
 from __future__ import annotations
 
-import random
 from typing import Any
 
 CUISINES = [
@@ -68,9 +67,277 @@ _PREF_KEYS = [
     "elegant",
     "lively",
     "intimate",
+    "fast_food",
+    "comida_rapida",
 ]
 
-_CUISINE_PREFS = {
+# Perfiles semanticos: prefs coherentes + caps + prefs prohibidas por arquetipo.
+SEMANTIC_ARCHETYPES: dict[str, dict[str, Any]] = {
+    "fast_food": {
+        "scores": {
+            "nightlife_score": 3,
+            "social_score": 7,
+            "premium_score": 2,
+            "comfort_score": 8,
+            "aesthetic_score": 4,
+            "romantic_score": 2,
+            "fast_service_score": 10,
+        },
+        "prefs": {
+            "fast_food": 10,
+            "comida_rapida": 10,
+            "fast_service": 10,
+            "casual": 9,
+            "comfort_food": 8,
+            "family_friendly": 7,
+            "social_grupo": 6,
+        },
+        "forbidden": {
+            "pref_italiana",
+            "pref_japonesa",
+            "pref_coreana",
+            "pref_mediterranea",
+            "gourmet",
+            "exclusive",
+            "romantic",
+            "intimate",
+            "wine_focus",
+            "slow_food",
+            "business_dining",
+            "elegant",
+        },
+        "max_prefs": {"premium": 2, "aesthetic": 4, "trendy": 4},
+    },
+    "guatemalteca_fast": {
+        "scores": {
+            "nightlife_score": 3,
+            "social_score": 8,
+            "premium_score": 2,
+            "comfort_score": 9,
+            "aesthetic_score": 4,
+            "romantic_score": 2,
+            "fast_service_score": 10,
+        },
+        "prefs": {
+            "pref_guatemalteca": 10,
+            "fast_food": 8,
+            "comida_rapida": 8,
+            "fast_service": 9,
+            "comfort_food": 8,
+            "family_friendly": 9,
+            "casual": 8,
+        },
+        "forbidden": {
+            "pref_italiana",
+            "gourmet",
+            "exclusive",
+            "romantic",
+            "wine_focus",
+            "business_dining",
+            "elegant",
+        },
+        "max_prefs": {"premium": 3, "trendy": 4},
+    },
+    "italian_premium": {
+        "scores": {
+            "nightlife_score": 5,
+            "social_score": 7,
+            "premium_score": 8,
+            "comfort_score": 6,
+            "aesthetic_score": 8,
+            "romantic_score": 8,
+            "fast_service_score": 5,
+        },
+        "prefs": {
+            "pref_italiana": 10,
+            "slow_food": 8,
+            "wine_focus": 8,
+            "romantic": 7,
+            "business_dining": 7,
+            "premium": 7,
+            "elegant": 6,
+        },
+        "forbidden": {"fast_food", "comida_rapida", "street_food"},
+        "max_prefs": {"fast_service": 6},
+    },
+    "italian_casual": {
+        "scores": {
+            "nightlife_score": 4,
+            "social_score": 8,
+            "premium_score": 4,
+            "comfort_score": 8,
+            "aesthetic_score": 5,
+            "romantic_score": 5,
+            "fast_service_score": 7,
+        },
+        "prefs": {
+            "pref_italiana": 9,
+            "casual": 8,
+            "family_friendly": 8,
+            "comfort_food": 7,
+            "fast_service": 7,
+        },
+        "forbidden": {"gourmet", "exclusive", "fast_food", "business_dining"},
+        "max_prefs": {"premium": 4, "romantic": 5},
+    },
+    "steakhouse_premium": {
+        "scores": {
+            "nightlife_score": 5,
+            "social_score": 7,
+            "premium_score": 9,
+            "comfort_score": 6,
+            "aesthetic_score": 7,
+            "romantic_score": 6,
+            "fast_service_score": 5,
+        },
+        "prefs": {
+            "premium": 9,
+            "gourmet": 8,
+            "business_dining": 8,
+            "contundente": 8,
+            "wine_focus": 6,
+            "elegant": 6,
+        },
+        "forbidden": {"fast_food", "comida_rapida", "street_food"},
+        "max_prefs": {"fast_service": 6},
+    },
+    "cafe_brunch": {
+        "scores": {
+            "nightlife_score": 3,
+            "social_score": 7,
+            "premium_score": 4,
+            "comfort_score": 8,
+            "aesthetic_score": 8,
+            "romantic_score": 5,
+            "fast_service_score": 7,
+        },
+        "prefs": {
+            "coffee_culture": 10,
+            "brunch": 8,
+            "aesthetic": 7,
+            "casual": 8,
+            "saludable": 6,
+        },
+        "forbidden": {"gourmet", "exclusive", "nightlife", "business_dining"},
+        "max_prefs": {"premium": 4, "romantic": 5},
+    },
+    "fusion_premium": {
+        "scores": {
+            "nightlife_score": 7,
+            "social_score": 8,
+            "premium_score": 8,
+            "comfort_score": 5,
+            "aesthetic_score": 9,
+            "romantic_score": 7,
+            "fast_service_score": 5,
+        },
+        "prefs": {
+            "gourmet": 9,
+            "trendy": 9,
+            "aventurero": 8,
+            "aesthetic": 8,
+            "social_grupo": 8,
+            "premium": 7,
+        },
+        "forbidden": {"fast_food", "comida_rapida"},
+        "max_prefs": {"fast_service": 6},
+    },
+    "nightlife_social": {
+        "scores": {
+            "nightlife_score": 9,
+            "social_score": 9,
+            "premium_score": 6,
+            "comfort_score": 5,
+            "aesthetic_score": 8,
+            "romantic_score": 4,
+            "fast_service_score": 6,
+        },
+        "prefs": {
+            "nightlife": 9,
+            "lively": 8,
+            "social_grupo": 9,
+            "craft_beer": 7,
+            "trendy": 7,
+        },
+        "forbidden": {"family_friendly", "slow_food", "romantic"},
+        "max_prefs": {"premium": 6},
+    },
+    "healthy_casual": {
+        "scores": {
+            "nightlife_score": 2,
+            "social_score": 6,
+            "premium_score": 3,
+            "comfort_score": 6,
+            "aesthetic_score": 7,
+            "romantic_score": 3,
+            "fast_service_score": 8,
+        },
+        "prefs": {
+            "saludable": 10,
+            "fast_service": 8,
+            "casual": 7,
+            "aesthetic": 6,
+        },
+        "forbidden": {"gourmet", "exclusive", "nightlife", "premium"},
+        "max_prefs": {"premium": 3},
+    },
+    "casual_dining": {
+        "scores": {
+            "nightlife_score": 4,
+            "social_score": 7,
+            "premium_score": 4,
+            "comfort_score": 8,
+            "aesthetic_score": 5,
+            "romantic_score": 4,
+            "fast_service_score": 7,
+        },
+        "prefs": {
+            "casual": 8,
+            "comfort_food": 7,
+            "family_friendly": 7,
+            "fast_service": 7,
+            "social_grupo": 6,
+        },
+        "forbidden": set(),
+        "max_prefs": {"premium": 5, "gourmet": 5},
+    },
+    "premium_fine": {
+        "scores": {
+            "nightlife_score": 6,
+            "social_score": 7,
+            "premium_score": 9,
+            "comfort_score": 6,
+            "aesthetic_score": 9,
+            "romantic_score": 8,
+            "fast_service_score": 5,
+        },
+        "prefs": {
+            "premium": 9,
+            "gourmet": 9,
+            "exclusive": 8,
+            "elegant": 8,
+            "romantic": 7,
+            "wine_focus": 7,
+        },
+        "forbidden": {"fast_food", "comida_rapida", "street_food", "fast_service"},
+        "max_prefs": {"fast_service": 6},
+    },
+}
+
+_FAST_FOOD_NAMES = (
+    "mcdonald",
+    "burger king",
+    "kfc",
+    "wendy",
+    "taco bell",
+    "subway",
+    "domino",
+    "pizza hut",
+    "little caesar",
+    "papa john",
+)
+
+_CUISINE_PREF_HINTS = {
     "Japonesa": {"pref_japonesa": 9, "asian_fusion": 7, "gourmet": 6},
     "Italiana": {"pref_italiana": 9, "wine_focus": 6, "slow_food": 6},
     "Mexicana": {"pref_mexicana": 9, "street_food": 6, "lively": 6},
@@ -139,59 +406,136 @@ _SCORE_PROFILES = {
 }
 
 
-def _price_from_tier(tier: str) -> int:
-    low, high = _PRICE_TIER_RANGE[tier]
-    return int(round(random.randint(low, high) / 5) * 5)
+def _detect_semantic_archetype(
+    nombre: str,
+    cocina: str,
+    tipo: str,
+    ambiente: str,
+    price_tier: str,
+    profile: str,
+) -> str:
+    name_l = (nombre or "").lower()
+    tipo_l = (tipo or "").lower()
+    ambiente_l = (ambiente or "").lower()
+
+    if any(token in name_l for token in _FAST_FOOD_NAMES) or "comida rapida" in tipo_l:
+        return "fast_food"
+    if "pollo campero" in name_l or name_l.strip() == "tip top":
+        return "guatemalteca_fast"
+    if cocina == "Saludable" or "healthy" in tipo_l or "ensalada" in tipo_l:
+        return "healthy_casual"
+    if cocina == "Cafe" or "cafe" in tipo_l or "coffee" in tipo_l or "brunch" in tipo_l or "bakery" in tipo_l:
+        return "cafe_brunch"
+    if "food hall" in tipo_l or "mercado" in tipo_l:
+        return "fusion_premium"
+    if ambiente_l == "nocturno" or "gastrobar" in tipo_l or "cantina" in tipo_l or "cerveceria" in tipo_l:
+        return "nightlife_social"
+    if cocina == "Steakhouse" or "steakhouse" in tipo_l or "parrilla" in tipo_l:
+        return "steakhouse_premium"
+    if cocina == "Italiana":
+        if price_tier in {"fine", "luxury"} or any(k in tipo_l for k in ("ristorante", "trattoria", "fine", "steakhouse")):
+            return "italian_premium"
+        return "italian_casual"
+    if profile == "luxury" or price_tier in {"fine", "luxury"}:
+        return "premium_fine"
+    if cocina == "Fusion" and price_tier in {"premium", "fine", "luxury"}:
+        return "fusion_premium"
+    if price_tier == "economico" or profile == "casual":
+        return "casual_dining"
+    return "premium_fine" if price_tier in {"fine", "luxury"} else "casual_dining"
 
 
-def _scores_to_prefs(scores: dict[str, Any], archetype_prefs: dict[str, int]) -> dict[str, int]:
-    prefs = {key: 0 for key in _PREF_KEYS}
-    for key, value in archetype_prefs.items():
+def _merge_pref_dict(base: dict[str, int], extra: dict[str, int] | None) -> dict[str, int]:
+    merged = dict(base)
+    for key, value in (extra or {}).items():
+        if key not in _PREF_KEYS:
+            continue
+        merged[key] = max(merged.get(key, 0), max(0, min(10, int(value))))
+    return merged
+
+
+def _apply_cuisine_ambiente_hints(
+    prefs: dict[str, int],
+    cocina: str,
+    ambiente: str,
+    archetype: str,
+) -> dict[str, int]:
+    """Refuerzos suaves solo cuando no contradicen el arquetipo."""
+    if archetype in {"fast_food", "guatemalteca_fast"}:
+        return prefs
+    for key, value in _CUISINE_PREF_HINTS.get(cocina, {}).items():
         if key in prefs:
-            prefs[key] = max(0, min(10, int(value)))
-
-    cocina = str(scores.get("cocina", ""))
-    ambiente = str(scores.get("ambiente", ""))
-    for key, value in _CUISINE_PREFS.get(cocina, {}).items():
-        prefs[key] = max(prefs[key], value)
+            prefs[key] = max(prefs[key], min(value, prefs.get(key, 0) + 2))
+        elif value >= 7:
+            prefs[key] = min(value, 8)
     for key, value in _AMBIENTE_PREFS.get(ambiente, {}).items():
-        prefs[key] = max(prefs[key], value)
-
-    nightlife = int(scores.get("nightlife_score", 5))
-    social = int(scores.get("social_score", 5))
-    premium = int(scores.get("premium_score", 5))
-    comfort = int(scores.get("comfort_score", 5))
-    aesthetic = int(scores.get("aesthetic_score", 5))
-    romantic = int(scores.get("romantic_score", 5))
-    fast_service = int(scores.get("fast_service_score", 5))
-    rating = float(scores.get("rating", 4.3))
-
-    prefs["nightlife"] = max(prefs["nightlife"], nightlife)
-    prefs["social_grupo"] = max(prefs["social_grupo"], social)
-    prefs["premium"] = max(prefs["premium"], premium)
-    prefs["exclusive"] = max(prefs["exclusive"], max(1, premium - 1))
-    prefs["business_dining"] = max(prefs["business_dining"], max(1, premium - 2))
-    prefs["comfort_food"] = max(prefs["comfort_food"], comfort)
-    prefs["aesthetic"] = max(prefs["aesthetic"], aesthetic)
-    prefs["trendy"] = max(prefs["trendy"], max(1, social - 1))
-    prefs["romantic"] = max(prefs["romantic"], romantic)
-    prefs["intimate"] = max(prefs["intimate"], max(1, romantic - 1))
-    prefs["fast_service"] = max(prefs["fast_service"], fast_service)
-    prefs["lively"] = max(prefs["lively"], max(1, nightlife - 1))
-    prefs["gourmet"] = max(prefs["gourmet"], max(1, int(round((premium + rating) / 2))))
-
-    if fast_service >= 8:
-        prefs["street_food"] = max(prefs["street_food"], 7)
-    if premium >= 8:
-        prefs["wine_focus"] = max(prefs["wine_focus"], 6)
-        prefs["elegant"] = max(prefs["elegant"], 7)
-    if aesthetic >= 8:
-        prefs["coffee_culture"] = max(prefs["coffee_culture"], 6)
-    if comfort >= 8:
-        prefs["family_friendly"] = max(prefs["family_friendly"], 7)
-        prefs["casual"] = max(prefs["casual"], 6)
-
+        if key in SEMANTIC_ARCHETYPES[archetype].get("forbidden", set()):
+            continue
+        prefs[key] = max(prefs.get(key, 0), min(value, 7))
     return prefs
+
+
+def _sanitize_restaurant_prefs(prefs: dict[str, int], archetype: str) -> dict[str, int]:
+    template = SEMANTIC_ARCHETYPES[archetype]
+    forbidden = template.get("forbidden", set())
+    max_prefs = template.get("max_prefs", {})
+    clean = {k: v for k, v in prefs.items() if v > 0 and k not in forbidden}
+    for key, cap in max_prefs.items():
+        if key in clean:
+            clean[key] = min(clean[key], cap)
+    return clean
+
+
+def _build_semantic_prefs(
+    nombre: str,
+    cocina: str,
+    tipo: str,
+    ambiente: str,
+    price_tier: str,
+    profile: str,
+    pref_boost: dict[str, int] | None = None,
+) -> tuple[str, dict[str, int], dict[str, int]]:
+    archetype = _detect_semantic_archetype(nombre, cocina, tipo, ambiente, price_tier, profile)
+    template = SEMANTIC_ARCHETYPES[archetype]
+    scores = dict(template["scores"])
+    prefs = _merge_pref_dict(template["prefs"], pref_boost)
+    prefs = _apply_cuisine_ambiente_hints(prefs, cocina, ambiente, archetype)
+    prefs = _sanitize_restaurant_prefs(prefs, archetype)
+    return archetype, scores, prefs
+
+
+def validate_restaurant_classification(restaurant: dict[str, Any]) -> list[str]:
+    issues: list[str] = []
+    prefs = restaurant.get("prefs") or {}
+    archetype = restaurant.get("semantic_archetype") or ""
+    nombre = restaurant.get("nombre") or ""
+
+    if archetype in {"fast_food", "guatemalteca_fast"}:
+        if prefs.get("pref_italiana", 0) >= 3:
+            issues.append("fast food con afinidad italiana")
+        if prefs.get("gourmet", 0) >= 5:
+            issues.append("fast food marcado como gourmet")
+        if prefs.get("premium", 0) >= 5:
+            issues.append("fast food marcado como premium")
+        if prefs.get("romantic", 0) >= 5:
+            issues.append("fast food marcado como romantico")
+    if archetype == "italian_premium" and prefs.get("fast_food", 0) >= 5:
+        issues.append("italiano premium con fast food")
+    if prefs.get("fast_food", 0) >= 7 and prefs.get("exclusive", 0) >= 6:
+        issues.append("fast food + luxury incompatible")
+    if prefs.get("pref_italiana", 0) >= 7 and archetype == "fast_food":
+        issues.append("%s clasificado como italiano" % nombre)
+    return issues
+
+
+def validate_restaurant_catalog(restaurants: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    rows = restaurants if restaurants is not None else RESTAURANTS
+    flagged: list[dict[str, Any]] = []
+    for row in rows:
+        issues = validate_restaurant_classification(row)
+        if issues:
+            flagged.append({"id": row.get("id"), "nombre": row.get("nombre"), "issues": issues})
+    return {"valid": len(flagged) == 0, "checked": len(rows), "issues": flagged}
 
 
 def _curated_entry(
@@ -207,9 +551,9 @@ def _curated_entry(
     profile: str,
     pref_boost: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    score_map = dict(_SCORE_PROFILES[profile])
-    score_map.update({"cocina": cocina, "ambiente": ambiente, "rating": rating})
-    prefs = _scores_to_prefs(score_map, pref_boost or {})
+    archetype, score_map, prefs = _build_semantic_prefs(
+        nombre, cocina, tipo, ambiente, price_tier, profile, pref_boost
+    )
     return {
         "id": "",
         "nombre": nombre,
@@ -221,6 +565,7 @@ def _curated_entry(
         "tipo": tipo,
         "ambiente": ambiente,
         "descripcion": descripcion,
+        "semantic_archetype": archetype,
         "nightlife_score": score_map["nightlife_score"],
         "social_score": score_map["social_score"],
         "premium_score": score_map["premium_score"],
@@ -232,289 +577,245 @@ def _curated_entry(
     }
 
 
-CURATED = [
-    _curated_entry("Hibachi", "Zona 10", "Japonesa", "Teppanyaki", "elegante", 4.7, "premium", 295, "Plancha japonesa y show culinario en ambiente sofisticado.", "premium", {"business_dining": 8, "social_grupo": 7}),
-    _curated_entry("Tamarindos", "Zona 10", "Fusion", "Fine Dining", "romantico", 4.8, "fine", 455, "Cocina de autor con ingredientes locales y montaje elegante.", "luxury", {"romantic": 9, "gourmet": 10}),
-    _curated_entry("Pecorino", "Zona 10", "Italiana", "Ristorante", "romantico", 4.7, "premium", 315, "Pastas artesanales y carta de vinos para cenas largas.", "premium", {"wine_focus": 8, "slow_food": 8}),
-    _curated_entry("Tre Fratelli", "Zona 10", "Italiana", "Trattoria", "elegante", 4.6, "premium", 285, "Recetas italianas clasicas con servicio cuidado.", "premium", {"family_friendly": 7}),
-    _curated_entry("Bottega Foresto", "Zona 10", "Italiana", "Bistro", "trendy", 4.7, "fine", 410, "Concepto contemporaneo italiano con barra de vinos.", "premium", {"aesthetic": 9, "trendy": 9}),
-    _curated_entry("Viu Bistro", "Zona 10", "Internacional", "Bistro", "trendy", 4.6, "premium", 275, "Bistro urbano de platos cortos y cocteleria cuidada.", "premium", {"nightlife": 7}),
-    _curated_entry("Porcino", "Zona 10", "Italiana", "Steakhouse", "elegante", 4.7, "fine", 440, "Cortes premium y especialidades italianas en salon moderno.", "luxury", {"business_dining": 9}),
-    _curated_entry("El Cielo", "Zona 10", "Fusion", "Fine Dining", "romantico", 4.8, "luxury", 640, "Menu degustacion con tecnica moderna y atencion personalizada.", "luxury", {"exclusive": 10, "romantic": 9}),
-    _curated_entry("Casa del Angel", "Zona 10", "Francesa", "Fine Dining", "romantico", 4.7, "luxury", 690, "Cocina francesa contemporanea en casa restaurada.", "luxury", {"intimate": 9, "wine_focus": 9}),
-    _curated_entry("Sake Atelier", "Zona 10", "Japonesa", "Omakase", "elegante", 4.9, "luxury", 790, "Barra omakase con pescados importados y maridaje.", "luxury", {"pref_japonesa": 10, "gourmet": 10}),
-    _curated_entry("Brasa Capital", "Zona 10", "Steakhouse", "Steakhouse", "elegante", 4.6, "fine", 470, "Madurados en seco y carta amplia de cortes.", "premium", {"business_dining": 8, "premium": 9}),
-    _curated_entry("Nikkei 10", "Zona 10", "Peruana", "Nikkei", "trendy", 4.6, "premium", 335, "Finos toques peruanos y japoneses para compartir.", "premium", {"asian_fusion": 9, "aventurero": 8}),
-    _curated_entry("La Barra del Patio", "Zona 10", "Mexicana", "Cantina Gourmet", "nocturno", 4.4, "casual", 170, "Tacos de autor y mixologia para grupos grandes.", "casual", {"craft_beer": 7, "nightlife": 8}),
-    _curated_entry("Rooftop Diez", "Zona 10", "Internacional", "Rooftop", "nocturno", 4.5, "premium", 320, "Terraza con vista, tapas y ambiente de noche.", "premium", {"rooftop": 10, "nightlife": 9}),
-    _curated_entry("Marea Urbana", "Zona 10", "Mariscos", "Seafood Grill", "elegante", 4.5, "premium", 305, "Mariscos frescos y ceviches en formato urbano.", "premium", {"romantic": 6, "gourmet": 8}),
 
-    _curated_entry("Frida Kahlo", "Zona 14", "Mexicana", "Cocina Mexicana", "trendy", 4.6, "premium", 295, "Sabores mexicanos autenticos con diseno vibrante.", "premium", {"pref_mexicana": 10, "lively": 8}),
-    _curated_entry("Los Tres Tiempos", "Zona 14", "Guatemalteca", "Cocina Guatemalteca", "familiar", 4.7, "premium", 265, "Recetas guatemaltecas con enfoque moderno y porciones generosas.", "premium", {"pref_guatemalteca": 10, "comfort_food": 8}),
-    _curated_entry("Marena", "Zona 14", "Mediterranea", "Mediterraneo", "elegante", 4.7, "fine", 420, "Pescados, aceite de oliva y vegetales de temporada.", "premium", {"pref_mediterranea": 10, "saludable": 8}),
-    _curated_entry("Corte Nativo", "Zona 14", "Steakhouse", "Steakhouse", "elegante", 4.6, "fine", 460, "Parrilla premium para almuerzos corporativos y cenas.", "premium", {"business_dining": 9}),
-    _curated_entry("Osteria Primitivo", "Zona 14", "Italiana", "Osteria", "romantico", 4.7, "premium", 330, "Pasta fresca, vino y ambiente calido.", "premium", {"wine_focus": 8, "intimate": 8}),
-    _curated_entry("Sora Sushi", "Zona 14", "Japonesa", "Sushi", "elegante", 4.8, "fine", 515, "Nigiris delicados y servicio de alta precision.", "luxury", {"pref_japonesa": 10, "gourmet": 9}),
-    _curated_entry("El Portico 14", "Zona 14", "Francesa", "Bistro", "romantico", 4.5, "premium", 310, "Bistro frances de porciones balanceadas y postres clasicos.", "premium", {"romantic": 8}),
-    _curated_entry("Atempo", "Zona 14", "Fusion", "Cocina de Autor", "elegante", 4.7, "fine", 485, "Menu de temporada con tecnica moderna latinoeuropea.", "luxury", {"exclusive": 9, "gourmet": 9}),
-    _curated_entry("Luna Rooftop", "Zona 14", "Internacional", "Rooftop", "nocturno", 4.5, "premium", 295, "Cocteles de autor y platos pequenos para after office.", "premium", {"rooftop": 10, "nightlife": 9}),
-    _curated_entry("Brasa 14", "Zona 14", "Steakhouse", "Grill House", "elegante", 4.5, "premium", 320, "Carnes al carbon y selecciones para compartir.", "premium", {"business_dining": 8}),
-    _curated_entry("Mikuna", "Zona 14", "Peruana", "Nikkei", "trendy", 4.6, "premium", 345, "Cebiches y tiraditos con enfoque contemporaneo.", "premium", {"asian_fusion": 8, "aventurero": 8}),
-    _curated_entry("Casa Amapola", "Zona 14", "Mediterranea", "Bistro", "cozy", 4.4, "casual", 180, "Cocina mediterranea ligera en ambiente acogedor.", "cafe", {"saludable": 8, "aesthetic": 7}),
-    _curated_entry("Siena Mercato", "Zona 14", "Italiana", "Wine Bar", "trendy", 4.5, "premium", 260, "Platos italianos cortos y buena seleccion de vino por copa.", "premium", {"wine_focus": 8, "trendy": 8}),
-    _curated_entry("Paladar 14", "Zona 14", "Internacional", "Bistro", "elegante", 4.5, "premium", 275, "Menu ejecutivo de alto nivel y cena con musica suave.", "premium", {"business_dining": 8, "social_grupo": 7}),
-    _curated_entry("Ceviche de Barrio Alto", "Zona 14", "Mariscos", "Cevicheria", "casual", 4.3, "casual", 165, "Ceviches clasicos y tostadas frescas para almuerzos rapidos.", "casual", {"fast_service": 8}),
-
-    _curated_entry("Kaffeine", "Zona 15", "Cafe", "Cafe de Especialidad", "brunch", 4.6, "casual", 145, "Cafe de especialidad, reposteria y brunch todo el dia.", "cafe", {"coffee_culture": 10, "brunch": 9}),
-    _curated_entry("Nido Verde", "Zona 15", "Saludable", "Healthy Kitchen", "brunch", 4.5, "casual", 160, "Bowls, ensaladas y smoothies para rutina saludable.", "cafe", {"saludable": 10, "aesthetic": 8}),
-    _curated_entry("Masa Madre 15", "Zona 15", "Cafe", "Bakery Cafe", "cozy", 4.5, "casual", 135, "Pan de fermentacion natural y desayunos bien presentados.", "cafe", {"coffee_culture": 8, "comfort_food": 7}),
-    _curated_entry("Avena Casa", "Zona 15", "Saludable", "Brunch", "brunch", 4.4, "casual", 140, "Opciones de brunch saludable y cafe filtrado.", "cafe", {"brunch": 9, "saludable": 9}),
-    _curated_entry("Lumen Coffee Lab", "Zona 15", "Cafe", "Coffee Lab", "trendy", 4.5, "casual", 150, "Extracciones de especialidad con menu ligero.", "cafe", {"coffee_culture": 10, "aesthetic": 9}),
-    _curated_entry("Basilico Verde", "Zona 15", "Mediterranea", "Bistro", "trendy", 4.5, "premium", 220, "Mediterraneo fresco con enfoque plant-forward.", "cafe", {"pref_mediterranea": 9, "saludable": 8}),
-    _curated_entry("Miel Taller", "Zona 15", "Cafe", "Brunch House", "brunch", 4.4, "casual", 130, "Huevos, waffles y panaderia artesanal para fines de semana.", "cafe", {"brunch": 9, "family_friendly": 7}),
-    _curated_entry("Aguacate Social", "Zona 15", "Saludable", "Brunch", "trendy", 4.3, "casual", 155, "Tostadas, bowls y cafe de origen en ambiente luminoso.", "cafe", {"trendy": 8, "social_grupo": 8}),
-    _curated_entry("Verde y Limon", "Zona 15", "Saludable", "Healthy Bar", "casual", 4.3, "economico", 90, "Jugos prensados y wraps para ritmo de oficina.", "casual", {"fast_service": 9, "saludable": 8}),
-    _curated_entry("Giardino 15", "Zona 15", "Italiana", "Trattoria", "romantico", 4.6, "premium", 245, "Pastas caseras y terraza verde para cenas tranquilas.", "premium", {"intimate": 8, "aesthetic": 8}),
-    _curated_entry("Moki Poke", "Zona 15", "Asiatica", "Poke", "casual", 4.2, "economico", 100, "Poke bowls rapidos con ingredientes frescos.", "casual", {"asian_fusion": 7, "fast_service": 9}),
-    _curated_entry("Yuzu Bowl", "Zona 15", "Japonesa", "Ramen", "cozy", 4.4, "casual", 175, "Ramen y donburi en un espacio pequeno y moderno.", "cafe", {"pref_japonesa": 8, "comfort_food": 7}),
-    _curated_entry("Andino Fit", "Zona 15", "Peruana", "Healthy Bistro", "trendy", 4.3, "casual", 165, "Cocina peruana ligera con bowls y ceviche.", "cafe", {"saludable": 8, "aventurero": 7}),
-    _curated_entry("Aroma Taller", "Zona 15", "Cafe", "Cafe de Especialidad", "brunch", 4.4, "casual", 120, "Cafe de origen guatemalteco y pasteleria simple.", "cafe", {"coffee_culture": 9}),
-    _curated_entry("Cosecha 15", "Zona 15", "Guatemalteca", "Comedor Contemporaneo", "familiar", 4.4, "casual", 170, "Ingredientes locales en platos caseros de temporada.", "cafe", {"pref_guatemalteca": 8, "family_friendly": 8}),
-
-    _curated_entry("San Martin", "Zona 16", "Cafe", "Bakery Cafe", "familiar", 4.6, "casual", 140, "Panaderia iconica con menu amplio para toda la familia.", "cafe", {"family_friendly": 9, "coffee_culture": 8}),
-    _curated_entry("Cayala Brunch Co", "Zona 16", "Cafe", "Brunch", "brunch", 4.5, "casual", 155, "Brunch de fin de semana en entorno peatonal.", "cafe", {"brunch": 9, "aesthetic": 8}),
-    _curated_entry("Bosco Verde", "Zona 16", "Saludable", "Healthy Kitchen", "trendy", 4.5, "casual", 170, "Opciones saludables con ingredientes de temporada.", "cafe", {"saludable": 10, "trendy": 8}),
-    _curated_entry("Naranjo Bistro", "Zona 16", "Mediterranea", "Bistro", "elegante", 4.5, "premium", 235, "Mediterraneo ligero para comidas de negocios.", "premium", {"business_dining": 8, "pref_mediterranea": 9}),
-    _curated_entry("Moka District", "Zona 16", "Cafe", "Coffee Bar", "trendy", 4.4, "casual", 135, "Barra de espresso y tostados locales en espacio moderno.", "cafe", {"coffee_culture": 10, "aesthetic": 8}),
-    _curated_entry("Aurora House", "Zona 16", "Fusion", "Bistro", "romantico", 4.6, "premium", 260, "Cocina fusion y terraza intima para cita.", "premium", {"romantic": 9, "intimate": 8}),
-    _curated_entry("Marea Cayala", "Zona 16", "Mariscos", "Cevicheria", "trendy", 4.4, "premium", 240, "Mariscos frescos y cocteleria ligera.", "premium", {"social_grupo": 8, "nightlife": 7}),
-    _curated_entry("Casa Botanica", "Zona 16", "Saludable", "Brunch", "brunch", 4.5, "casual", 150, "Platos vegetales y ambiente natural para desayunos largos.", "cafe", {"saludable": 9, "aesthetic": 9}),
-    _curated_entry("Gusto 16", "Zona 16", "Italiana", "Pizzeria", "familiar", 4.3, "casual", 165, "Pizza al horno y pastas para compartir.", "casual", {"family_friendly": 8, "comfort_food": 8}),
-    _curated_entry("Cosecha Urbana", "Zona 16", "Guatemalteca", "Comedor", "familiar", 4.4, "casual", 150, "Comida guatemalteca moderna con ingredientes del altiplano.", "casual", {"pref_guatemalteca": 8, "comfort_food": 8}),
-    _curated_entry("Koru Sushi", "Zona 16", "Japonesa", "Sushi", "elegante", 4.5, "premium", 295, "Sushi premium y platos calientes para cena social.", "premium", {"pref_japonesa": 9, "premium": 8}),
-    _curated_entry("Piedra Alta", "Zona 16", "Steakhouse", "Steakhouse", "elegante", 4.6, "fine", 390, "Cortes madurados y barra de vinos robusta.", "premium", {"business_dining": 8, "wine_focus": 8}),
-    _curated_entry("Casa Guayacan", "Zona 16", "Internacional", "Bistro", "cozy", 4.4, "casual", 180, "Platos internacionales en ambiente acogedor.", "cafe", {"comfort_food": 7, "intimate": 7}),
-    _curated_entry("Ritual Matcha", "Zona 16", "Cafe", "Tea & Coffee", "trendy", 4.3, "casual", 120, "Bebidas de te y cafe con postres ligeros.", "cafe", {"coffee_culture": 8, "aesthetic": 8}),
-    _curated_entry("Altura 16", "Zona 16", "Internacional", "Rooftop", "nocturno", 4.4, "premium", 270, "Vista panoramica con cocina ligera y dj set.", "premium", {"rooftop": 10, "nightlife": 8}),
-
-    _curated_entry("La Cazuela 11", "Zona 11", "Guatemalteca", "Comedor", "familiar", 4.4, "economico", 85, "Comida casera guatemalteca para almuerzo diario.", "casual", {"pref_guatemalteca": 9, "comfort_food": 9}),
-    _curated_entry("Taqueria El Naranjo", "Zona 11", "Mexicana", "Taqueria", "casual", 4.3, "economico", 80, "Tacos al pastor y gringas en servicio rapido.", "casual", {"street_food": 9, "fast_service": 9}),
-    _curated_entry("Pollo y Lena", "Zona 11", "Guatemalteca", "Asados", "familiar", 4.2, "economico", 75, "Pollo asado y guarniciones tradicionales.", "casual", {"family_friendly": 8}),
-    _curated_entry("Pupusas de Dona Tere", "Zona 11", "Guatemalteca", "Pupuseria", "casual", 4.3, "economico", 70, "Pupusas artesanales y curtido casero.", "casual", {"street_food": 8, "comfort_food": 8}),
-    _curated_entry("El Chirmol", "Zona 11", "Guatemalteca", "Comedor", "familiar", 4.4, "economico", 85, "Platos tipicos y tortillas recien hechas.", "casual", {"pref_guatemalteca": 9}),
-    _curated_entry("Chicharrones La Ceiba", "Zona 11", "Guatemalteca", "Antojitos", "casual", 4.1, "economico", 65, "Chicharrones, yuca y antojitos para compartir.", "casual", {"street_food": 8, "lively": 7}),
-    _curated_entry("La Plancha Once", "Zona 11", "Mexicana", "Parrillada", "casual", 4.2, "casual", 110, "Parrillada mixta y tortillas de maiz al momento.", "casual", {"social_grupo": 8}),
-    _curated_entry("Rincon Chapin", "Zona 11", "Guatemalteca", "Comedor", "familiar", 4.3, "economico", 90, "Desayunos chapines y caldos sustanciosos.", "casual", {"comfort_food": 9, "family_friendly": 9}),
-    _curated_entry("Marisqueria Once", "Zona 11", "Mariscos", "Marisqueria", "casual", 4.2, "casual", 135, "Caldos de mariscos y ceviches clasicos.", "casual", {"fast_service": 7}),
-    _curated_entry("Ramen Barrio 11", "Zona 11", "Japonesa", "Ramen", "cozy", 4.3, "casual", 170, "Ramen abundante en local pequeno y acogedor.", "casual", {"pref_japonesa": 7, "comfort_food": 8}),
-    _curated_entry("Punto Coreano", "Zona 11", "Coreana", "Korean BBQ", "casual", 4.2, "casual", 180, "Coreano informal con parrilla y guarniciones.", "casual", {"pref_coreana": 8, "aventurero": 8}),
-    _curated_entry("La Esquina 11", "Zona 11", "Internacional", "Bistro", "casual", 4.1, "economico", 95, "Menu variado y rapido para horario de oficina.", "casual", {"fast_service": 8, "casual": 8}),
-    _curated_entry("Antojitos Montufar", "Zona 11", "Guatemalteca", "Street Food", "casual", 4.2, "economico", 70, "Shucos y garnachas para comer al paso.", "casual", {"street_food": 9, "fast_service": 9}),
-    _curated_entry("Comal y Carbon", "Zona 11", "Guatemalteca", "Parrilla", "familiar", 4.3, "casual", 120, "Carnes al carbon y antojitos para grupos familiares.", "casual", {"family_friendly": 8, "social_grupo": 8}),
-    _curated_entry("La Casa del Caldo", "Zona 11", "Guatemalteca", "Sopas", "cozy", 4.2, "economico", 80, "Caldos reconfortantes con sazon tradicional.", "casual", {"comfort_food": 9}),
-
-    _curated_entry("Tortas Quinta", "Zona 5", "Mexicana", "Taqueria", "casual", 4.2, "economico", 75, "Tortas y tacos para servicio agil y sabroso.", "casual", {"street_food": 9, "fast_service": 9}),
-    _curated_entry("Comedor La Estacion", "Zona 5", "Guatemalteca", "Comedor", "familiar", 4.3, "economico", 80, "Menues diarios con comida casera y buen precio.", "casual", {"comfort_food": 9, "family_friendly": 8}),
-    _curated_entry("Shucos El Trebol", "Zona 5", "Guatemalteca", "Street Food", "casual", 4.1, "economico", 55, "Shucos de barrio con ingredientes al gusto.", "casual", {"street_food": 10, "fast_service": 9}),
-    _curated_entry("Taqueria Reforma 5", "Zona 5", "Mexicana", "Taqueria", "casual", 4.2, "economico", 70, "Tacos y quesadillas con salsa de casa.", "casual", {"pref_mexicana": 8}),
-    _curated_entry("Cafecito Obrero", "Zona 5", "Cafe", "Cafe", "cozy", 4.0, "economico", 60, "Cafe sencillo con panes y desayunos rapidos.", "casual", {"coffee_culture": 6, "comfort_food": 7}),
-    _curated_entry("Doce Onzas", "Zona 5", "Cafe", "Cafe", "casual", 4.1, "economico", 70, "Cafe de origen local y sandwiches para llevar.", "casual", {"coffee_culture": 7, "fast_service": 8}),
-    _curated_entry("El Sazon de Abuela", "Zona 5", "Guatemalteca", "Comedor", "familiar", 4.4, "economico", 85, "Recetas tradicionales y porciones abundantes.", "casual", {"pref_guatemalteca": 9, "comfort_food": 9}),
-    _curated_entry("Casa Mixco", "Zona 5", "Guatemalteca", "Parrilla", "familiar", 4.2, "casual", 130, "Parrilla chapina y acompañamientos clasicos.", "casual", {"social_grupo": 8}),
-    _curated_entry("Paches y Tamales Lupita", "Zona 5", "Guatemalteca", "Antojitos", "casual", 4.3, "economico", 65, "Paches, tamales y atol para desayunos y cenas.", "casual", {"street_food": 8, "comfort_food": 8}),
-    _curated_entry("Marimba Food Hall", "Zona 5", "Internacional", "Food Hall", "casual", 4.2, "casual", 120, "Puestos variados ideales para grupos y oficina.", "casual", {"social_grupo": 9, "lively": 8}),
-    _curated_entry("Burger del Barrio", "Zona 5", "Internacional", "Hamburguesas", "casual", 4.1, "economico", 90, "Hamburguesas clasicas con papas crujientes.", "casual", {"fast_service": 8, "comfort_food": 8}),
-    _curated_entry("Ceviche Quinta", "Zona 5", "Mariscos", "Cevicheria", "casual", 4.1, "casual", 125, "Ceviches frescos para almuerzo rapido.", "casual", {"fast_service": 8, "street_food": 7}),
-    _curated_entry("El Rincon Coreano", "Zona 5", "Coreana", "Korean BBQ", "casual", 4.0, "casual", 165, "Parrilla coreana accesible con buen ambiente.", "casual", {"pref_coreana": 8, "social_grupo": 8}),
-    _curated_entry("Ramen de la Quinta", "Zona 5", "Japonesa", "Ramen", "cozy", 4.2, "casual", 155, "Ramen y gyozas para dias lluviosos.", "casual", {"pref_japonesa": 7, "comfort_food": 8}),
-    _curated_entry("Plaza 5 Cantina", "Zona 5", "Mexicana", "Cantina", "nocturno", 4.1, "casual", 145, "Botanas, cerveza artesanal y musica en vivo.", "casual", {"craft_beer": 8, "nightlife": 7}),
-]
-
-ARCHETYPES = [
-    {
-        "name": "premium_urbano",
-        "weight": 34,
-        "zone_weights": {"Zona 10": 42, "Zona 14": 36, "Zona 15": 8, "Zona 16": 8, "Zona 11": 3, "Zona 5": 3},
-        "tier_weights": {"premium": 40, "fine": 40, "luxury": 15, "casual": 5},
-        "cuisines": ["Japonesa", "Italiana", "Steakhouse", "Francesa", "Fusion", "Mediterranea"],
-        "tipos": ["Sushi", "Omakase", "Steakhouse", "Fine Dining", "Ristorante", "Bistro"],
-        "ambientes": ["elegante", "romantico", "trendy"],
-        "score_range": {
-            "nightlife_score": (5, 8),
-            "social_score": (6, 9),
-            "premium_score": (7, 10),
-            "comfort_score": (4, 7),
-            "aesthetic_score": (7, 10),
-            "romantic_score": (6, 9),
-            "fast_service_score": (4, 7),
-        },
-        "prefs": {"gourmet": 8, "business_dining": 8, "elegant": 8, "wine_focus": 7},
-        "description_patterns": [
-            "Propuesta {cocina} con enfoque premium y servicio detallado.",
-            "{tipo} de nivel alto ideal para cena especial.",
-            "Cocina {cocina} refinada en ambiente {ambiente}.",
-        ],
-        "name_a": ["Atelier", "Casa", "Bistro", "Mesa", "Sello", "Corte", "Patio", "Aurum", "Brasa"],
-        "name_b": ["Capital", "Reserva", "Norte", "Selecto", "Vanguardia", "Urbana", "Gran", "Prime", "Alta"],
-    },
-    {
-        "name": "cafe_brunch_bonito",
-        "weight": 31,
-        "zone_weights": {"Zona 10": 8, "Zona 14": 10, "Zona 15": 36, "Zona 16": 36, "Zona 11": 5, "Zona 5": 5},
-        "tier_weights": {"economico": 15, "casual": 60, "premium": 20, "fine": 5},
-        "cuisines": ["Cafe", "Saludable", "Mediterranea", "Fusion"],
-        "tipos": ["Cafe de Especialidad", "Brunch", "Healthy Kitchen", "Bistro", "Coffee Bar"],
-        "ambientes": ["brunch", "trendy", "cozy", "familiar"],
-        "score_range": {
-            "nightlife_score": (2, 6),
-            "social_score": (6, 9),
-            "premium_score": (4, 7),
-            "comfort_score": (6, 9),
-            "aesthetic_score": (7, 10),
-            "romantic_score": (4, 8),
-            "fast_service_score": (6, 9),
-        },
-        "prefs": {"coffee_culture": 8, "brunch": 8, "aesthetic": 8, "saludable": 7},
-        "description_patterns": [
-            "Espacio {ambiente} con cafe y platos ligeros de estilo {cocina}.",
-            "Brunch popular en {zona} con enfoque visual y sabor balanceado.",
-            "Menu {cocina} pensado para desayunos largos y reuniones casuales.",
-        ],
-        "name_a": ["Lumen", "Moka", "Ritual", "Casa", "Aroma", "Huerto", "Nido", "Verde", "Masa"],
-        "name_b": ["Coffee", "Brunch", "Garden", "Studio", "Bowl", "Taller", "Lab", "Cultura", "Patio"],
-    },
-    {
-        "name": "barrio_casual",
-        "weight": 25,
-        "zone_weights": {"Zona 10": 6, "Zona 14": 7, "Zona 15": 10, "Zona 16": 10, "Zona 11": 34, "Zona 5": 33},
-        "tier_weights": {"economico": 45, "casual": 45, "premium": 10},
-        "cuisines": ["Guatemalteca", "Mexicana", "Internacional", "Coreana", "Japonesa"],
-        "tipos": ["Comedor", "Taqueria", "Street Food", "Parrilla", "Ramen", "Cantina"],
-        "ambientes": ["casual", "familiar", "cozy", "nocturno"],
-        "score_range": {
-            "nightlife_score": (3, 8),
-            "social_score": (6, 9),
-            "premium_score": (2, 6),
-            "comfort_score": (7, 10),
-            "aesthetic_score": (3, 7),
-            "romantic_score": (2, 6),
-            "fast_service_score": (7, 10),
-        },
-        "prefs": {"street_food": 8, "comfort_food": 8, "family_friendly": 7, "casual": 8},
-        "description_patterns": [
-            "Favorito de barrio con cocina {cocina} y servicio rapido.",
-            "{tipo} de estilo local para grupos y familia.",
-            "Opciones abundantes de {cocina} con ambiente {ambiente}.",
-        ],
-        "name_a": ["Rincon", "Sabor", "Comal", "Taqueria", "Casa", "Barrio", "Antojitos", "Plaza", "Parrilla"],
-        "name_b": ["Chapin", "Popular", "Central", "de Barrio", "de la 5", "de la 11", "Tradicion", "Express", "del Mercado"],
-    },
-    {
-        "name": "social_nocturno",
-        "weight": 10,
-        "zone_weights": {"Zona 10": 40, "Zona 14": 32, "Zona 15": 10, "Zona 16": 10, "Zona 11": 4, "Zona 5": 4},
-        "tier_weights": {"casual": 25, "premium": 55, "fine": 20},
-        "cuisines": ["Fusion", "Internacional", "Mexicana", "Asiatica", "Mariscos"],
-        "tipos": ["Rooftop", "Gastrobar", "Bistro", "Tapas", "Cantina"],
-        "ambientes": ["nocturno", "trendy", "elegante"],
-        "score_range": {
-            "nightlife_score": (7, 10),
-            "social_score": (7, 10),
-            "premium_score": (5, 8),
-            "comfort_score": (4, 7),
-            "aesthetic_score": (7, 10),
-            "romantic_score": (4, 7),
-            "fast_service_score": (5, 8),
-        },
-        "prefs": {"nightlife": 9, "rooftop": 8, "lively": 8, "social_grupo": 9},
-        "description_patterns": [
-            "Lugar {ambiente} para cocteles y platos para compartir.",
-            "Concepto social en {zona} con energia nocturna.",
-            "{tipo} con cocina {cocina} y ambiente vibrante.",
-        ],
-        "name_a": ["Luna", "Nube", "Rooftop", "Altura", "Cielo", "Distrito", "Nox", "Mirador", "Horizonte"],
-        "name_b": ["Social", "Nights", "Bar", "Lounge", "Urbano", "Club", "Kitchen", "14", "10"],
-    },
-]
-
-
-def _weighted_choice(weights: dict[str, int]) -> str:
-    options = list(weights)
-    values = [weights[item] for item in options]
-    return random.choices(options, weights=values, k=1)[0]
-
-
-def _generate_name(archetype: dict[str, Any], used_names: set[str], zona: str) -> str:
-    for _ in range(40):
-        a = random.choice(archetype["name_a"])
-        b = random.choice(archetype["name_b"])
-        maybe_zone = ""
-        if random.random() < 0.22:
-            maybe_zone = f" {zona.split()[-1]}"
-        candidate = f"{a} {b}{maybe_zone}".replace("  ", " ").strip()
-        if candidate not in used_names:
-            return candidate
-    return f"{archetype['name_a'][0]} {archetype['name_b'][0]} {len(used_names)}"
-
-
-def _make_generated(archetype: dict[str, Any], used_names: set[str]) -> dict[str, Any]:
-    zona = _weighted_choice(archetype["zone_weights"])
-    price_tier = _weighted_choice(archetype["tier_weights"])
-    cocina = random.choice(archetype["cuisines"])
-    tipo = random.choice(archetype["tipos"])
-    ambiente = random.choice(archetype["ambientes"])
-    precio = _price_from_tier(price_tier)
-    rating_low = 4.0 if price_tier in {"economico", "casual"} else 4.2
-    rating_high = 4.7 if price_tier in {"economico", "casual"} else 4.9
-    rating = round(random.uniform(rating_low, rating_high), 1)
-
-    scores: dict[str, Any] = {"cocina": cocina, "ambiente": ambiente, "rating": rating}
-    for key, value_range in archetype["score_range"].items():
-        scores[key] = random.randint(value_range[0], value_range[1])
-
-    name = _generate_name(archetype, used_names, zona)
-    used_names.add(name)
-    descripcion = random.choice(archetype["description_patterns"]).format(
-        cocina=cocina, tipo=tipo, ambiente=ambiente, zona=zona
+def _real_entry(
+    nombre, zona, cocina, tipo, ambiente, rating, tier, precio, descripcion, profile, boost=None,
+):
+    return _curated_entry(
+        nombre, zona, cocina, tipo, ambiente, rating, tier, precio, descripcion, profile, boost or {}
     )
 
-    return {
-        "id": "",
-        "nombre": name,
-        "zona": zona,
-        "rating": rating,
-        "price_tier": price_tier,
-        "precio": precio,
-        "cocina": cocina,
-        "tipo": tipo,
-        "ambiente": ambiente,
-        "descripcion": descripcion,
-        "nightlife_score": scores["nightlife_score"],
-        "social_score": scores["social_score"],
-        "premium_score": scores["premium_score"],
-        "comfort_score": scores["comfort_score"],
-        "aesthetic_score": scores["aesthetic_score"],
-        "romantic_score": scores["romantic_score"],
-        "fast_service_score": scores["fast_service_score"],
-        "prefs": _scores_to_prefs(scores, archetype["prefs"]),
-    }
 
-
-def build_catalog(target_count: int = 220) -> list[dict[str, Any]]:
-    random.seed(20260528)
-    restaurants = [dict(item) for item in CURATED]
-    used_names = {item["nombre"] for item in restaurants}
-
-    while len(restaurants) < target_count:
-        archetype = random.choices(
-            ARCHETYPES, weights=[arch["weight"] for arch in ARCHETYPES], k=1
-        )[0]
-        restaurants.append(_make_generated(archetype, used_names))
-
-    for idx, restaurant in enumerate(restaurants, start=1):
+def build_catalog() -> list[dict[str, Any]]:
+    rows = [
+        _real_entry('Hacienda Real', 'Zona 10', 'Steakhouse', 'Steakhouse', 'elegante', 4.7, 'fine', 420, 'Parrilla guatemalteca iconica con cortes premium y arquitectura latinoamericana.', 'premium', {'business_dining': 9, 'premium': 9}),
+        _real_entry('Tre Fratelli', 'Zona 10', 'Italiana', 'Trattoria', 'elegante', 4.6, 'premium', 285, 'Recetas italianas clasicas con servicio cuidado en Zona 10.', 'premium', {'pref_italiana': 10, 'wine_focus': 8, 'romantic': 7}),
+        _real_entry('Kacao', 'Zona 10', 'Guatemalteca', 'Cocina Guatemalteca', 'elegante', 4.7, 'premium', 310, 'Alta cocina guatemalteca con ingredientes locales y presentacion contemporanea.', 'premium', {'pref_guatemalteca': 10, 'gourmet': 9}),
+        _real_entry('Tamarindos', 'Zona 10', 'Fusion', 'Fine Dining', 'romantico', 4.8, 'fine', 455, 'Cocina de autor con ingredientes locales y montaje elegante.', 'luxury', {'romantic': 9, 'gourmet': 10, 'exclusive': 8}),
+        _real_entry('Hibachi', 'Zona 10', 'Japonesa', 'Teppanyaki', 'elegante', 4.7, 'premium', 295, 'Plancha japonesa y show culinario en ambiente sofisticado.', 'premium', {'pref_japonesa': 9, 'business_dining': 8}),
+        _real_entry('Pecorino', 'Zona 10', 'Italiana', 'Ristorante', 'romantico', 4.7, 'premium', 315, 'Pastas artesanales y carta de vinos para cenas largas.', 'premium', {'pref_italiana': 10, 'wine_focus': 8, 'slow_food': 8}),
+        _real_entry('Porcino', 'Zona 10', 'Italiana', 'Steakhouse', 'elegante', 4.7, 'fine', 440, 'Cortes premium y especialidades italianas en salon moderno.', 'luxury', {'business_dining': 9, 'premium': 9}),
+        _real_entry('Portal del Angel', 'Zona 10', 'Internacional', 'Fine Dining', 'elegante', 4.6, 'fine', 380, 'Restaurante reconocido en Fontabella con propuesta internacional refinada.', 'premium', {'elegant': 9, 'business_dining': 8}),
+        _real_entry('Saúl', 'Zona 10', 'Internacional', 'Bistro', 'trendy', 4.6, 'premium', 270, 'Bistro creativo con identidad propia en el corazon de Zona 10.', 'premium', {'trendy': 9, 'aesthetic': 8}),
+        _real_entry('Casa Escobar', 'Zona 10', 'Steakhouse', 'Steakhouse', 'elegante', 4.6, 'fine', 400, 'Carnes a la parrilla y tradicion steakhouse en Guatemala.', 'premium', {'premium': 9, 'business_dining': 8}),
+        _real_entry('El Adobe', 'Zona 10', 'Guatemalteca', 'Cocina Guatemalteca', 'familiar', 4.5, 'premium', 250, 'Sabores guatemaltecos en ambiente rustico y acogedor.', 'premium', {'pref_guatemalteca': 10, 'comfort_food': 8}),
+        _real_entry('La Estancia', 'Zona 10', 'Steakhouse', 'Steakhouse', 'elegante', 4.5, 'premium', 320, 'Cortes selectos y ambiente clasico para ocasiones especiales.', 'premium', {'business_dining': 8, 'premium': 8}),
+        _real_entry('Diaca', 'Zona 10', 'Fusion', 'Cocina de Autor', 'trendy', 4.6, 'fine', 390, 'Cocina contemporanea con identidad guatemalteca y toques globales.', 'premium', {'gourmet': 9, 'trendy': 8}),
+        _real_entry('Sublime', 'Zona 10', 'Fusion', 'Fine Dining', 'romantico', 4.7, 'fine', 430, 'Experiencia gastronomica de autor con maridaje cuidado.', 'luxury', {'gourmet': 10, 'romantic': 8}),
+        _real_entry("Jake's", 'Zona 10', 'Internacional', 'Gastrobar', 'nocturno', 4.5, 'premium', 260, 'Gastrobar con cocteleria y platos para compartir.', 'premium', {'nightlife': 8, 'social_grupo': 8, 'craft_beer': 7}),
+        _real_entry('Monoloco', 'Zona 10', 'Internacional', 'Gastrobar', 'nocturno', 4.5, 'premium', 240, 'Bar restaurante iconico con ambiente social y musica en vivo.', 'premium', {'nightlife': 9, 'lively': 9, 'social_grupo': 9}),
+        _real_entry('Mercado 24', 'Zona 10', 'Internacional', 'Food Hall', 'trendy', 4.5, 'premium', 220, 'Mercado gastronomico con multiples conceptos y ambiente vibrante.', 'premium', {'trendy': 9, 'social_grupo': 9, 'aventurero': 8}),
+        _real_entry('Del Griego', 'Zona 10', 'Mediterranea', 'Mediterraneo', 'elegante', 4.5, 'premium', 280, 'Sabores mediterraneos con fuerte identidad griega.', 'premium', {'pref_mediterranea': 10, 'saludable': 7}),
+        _real_entry('Gracia Cocina de Autor', 'Zona 10', 'Fusion', 'Cocina de Autor', 'elegante', 4.7, 'fine', 410, 'Alta cocina guatemalteca con tecnicas modernas y producto local.', 'luxury', {'gourmet': 10, 'exclusive': 8}),
+        _real_entry('La Finka', 'Zona 10', 'Guatemalteca', 'Comedor Contemporaneo', 'trendy', 4.6, 'premium', 265, 'Cocina guatemalteca contemporanea en ambiente urbano.', 'premium', {'pref_guatemalteca': 9, 'trendy': 8}),
+        _real_entry('Ambia', 'Zona 10', 'Peruana', 'Nikkei', 'trendy', 4.6, 'premium', 330, 'Propuesta nikkei peruana con sabores audaces y presentacion moderna.', 'premium', {'asian_fusion': 9, 'aventurero': 8}),
+        _real_entry('Bottega Foresto', 'Zona 10', 'Italiana', 'Bistro', 'trendy', 4.7, 'fine', 410, 'Concepto contemporaneo italiano con barra de vinos.', 'premium', {'aesthetic': 9, 'trendy': 9, 'wine_focus': 8}),
+        _real_entry("L'Oliveto", 'Zona 10', 'Italiana', 'Ristorante', 'romantico', 4.6, 'premium', 300, 'Cocina italiana tradicional con aceite de oliva y pastas frescas.', 'premium', {'pref_italiana': 10, 'slow_food': 8}),
+        _real_entry('Mantarraya', 'Zona 10', 'Mariscos', 'Seafood Grill', 'elegante', 4.6, 'premium', 310, 'Mariscos frescos y ceviches en ambiente sofisticado.', 'premium', {'gourmet': 8, 'romantic': 6}),
+        _real_entry('Shiro', 'Zona 10', 'Japonesa', 'Sushi', 'elegante', 4.7, 'fine', 480, 'Sushi y cocina japonesa de alta calidad.', 'luxury', {'pref_japonesa': 10, 'gourmet': 9}),
+        _real_entry('Estacion Santo Domingo', 'Zona 10', 'Internacional', 'Bistro', 'elegante', 4.5, 'premium', 275, 'Bistro internacional en entorno historico y elegante.', 'premium', {'elegant': 8, 'wine_focus': 7}),
+        _real_entry('Tablon del 8', 'Zona 10', 'Steakhouse', 'Steakhouse', 'elegante', 4.6, 'fine', 450, 'Cortes premium y ambiente de parrilla de alto nivel.', 'premium', {'premium': 9, 'business_dining': 9}),
+        _real_entry('La Veinte', 'Zona 10', 'Mexicana', 'Cocina Mexicana', 'trendy', 4.6, 'premium', 290, 'Cocina mexicana contemporanea con ambiente festivo.', 'premium', {'pref_mexicana': 10, 'lively': 8, 'nightlife': 7}),
+        _real_entry("P.F. Chang's", 'Zona 10', 'Asiatica', 'Cadena Asiatica', 'elegante', 4.4, 'premium', 250, 'Cocina asiatica contemporanea en cadena reconocida.', 'premium', {'asian_fusion': 8, 'business_dining': 7}),
+        _real_entry('El Arte Steak House', 'Zona 10', 'Steakhouse', 'Steakhouse', 'elegante', 4.5, 'fine', 420, 'Steakhouse con cortes selectos y servicio formal.', 'premium', {'premium': 9, 'business_dining': 8}),
+        _real_entry('Rincon del Steak', 'Zona 10', 'Steakhouse', 'Steakhouse', 'elegante', 4.5, 'premium', 340, 'Parrilla reconocida para amantes de la carne.', 'premium', {'premium': 8, 'business_dining': 8}),
+        _real_entry('Il Forno', 'Zona 10', 'Italiana', 'Pizzeria', 'familiar', 4.4, 'casual', 180, 'Pizza al horno de lena y pastas caseras.', 'casual', {'pref_italiana': 8, 'family_friendly': 8}),
+        _real_entry('Paisano', 'Zona 10', 'Italiana', 'Trattoria', 'familiar', 4.4, 'casual', 170, 'Trattoria italiana accesible con ambiente familiar.', 'casual', {'pref_italiana': 8, 'comfort_food': 7}),
+        _real_entry('45 Grados', 'Zona 10', 'Steakhouse', 'Steakhouse', 'elegante', 4.5, 'premium', 360, 'Cortes a la parrilla con tecnicas de coccion precisas.', 'premium', {'premium': 8, 'gourmet': 7}),
+        _real_entry('Animal Gastro Bar', 'Zona 10', 'Internacional', 'Gastrobar', 'nocturno', 4.4, 'premium', 255, 'Gastrobar con propuesta creativa y cocteleria.', 'premium', {'nightlife': 8, 'trendy': 8}),
+        _real_entry('Anadi2', 'Zona 10', 'Fusion', 'Bistro', 'trendy', 4.5, 'premium', 245, 'Bistro fusion con platos para compartir y ambiente moderno.', 'premium', {'trendy': 8, 'social_grupo': 8}),
+        _real_entry('Bisque', 'Zona 10', 'Francesa', 'Bistro', 'elegante', 4.5, 'fine', 370, 'Cocina francesa con sopas, pescados y postres clasicos.', 'premium', {'gourmet': 8, 'elegant': 8}),
+        _real_entry('Dumbo', 'Zona 10', 'Internacional', 'Bistro', 'trendy', 4.4, 'premium', 230, 'Propuesta internacional con ambiente relajado y moderno.', 'premium', {'trendy': 8, 'aesthetic': 7}),
+        _real_entry('Gusta', 'Zona 10', 'Saludable', 'Healthy Kitchen', 'brunch', 4.4, 'casual', 165, 'Opciones saludables y bowls frescos.', 'cafe', {'saludable': 9, 'brunch': 7}),
+        _real_entry('Nifu Nifa', 'Zona 10', 'Asiatica', 'Dim Sum', 'casual', 4.4, 'casual', 190, 'Dim sum y cocina cantonesa en ambiente casual.', 'casual', {'asian_fusion': 8, 'pref_japonesa': 6}),
+        _real_entry('Saint Honore', 'Zona 10', 'Francesa', 'Pasteleria Restaurante', 'elegante', 4.5, 'premium', 220, 'Pasteleria francesa y platos ligeros de alta calidad.', 'premium', {'elegant': 8, 'aesthetic': 8}),
+        _real_entry('Tul y Tul', 'Zona 10', 'Internacional', 'Bistro', 'romantico', 4.5, 'premium', 260, 'Bistro con terraza y propuesta internacional refinada.', 'premium', {'romantic': 8, 'intimate': 7}),
+        _real_entry('Zest', 'Zona 10', 'Internacional', 'Bistro', 'trendy', 4.4, 'premium', 240, 'Cocina internacional con toques citricos y ambiente urbano.', 'premium', {'trendy': 8, 'aesthetic': 7}),
+        _real_entry('Fiorellino', 'Zona 10', 'Italiana', 'Trattoria', 'cozy', 4.4, 'casual', 175, 'Pastas y pizzas en ambiente acogedor.', 'casual', {'pref_italiana': 8, 'comfort_food': 7}),
+        _real_entry('Le Crepe', 'Zona 10', 'Francesa', 'Creperie', 'cozy', 4.3, 'casual', 150, 'Crepes dulces y salados en ambiente parisino.', 'cafe', {'romantic': 6, 'brunch': 7}),
+        _real_entry('Paligo', 'Zona 10', 'Internacional', 'Bistro', 'elegante', 4.4, 'premium', 265, 'Bistro internacional con carta variada y servicio formal.', 'premium', {'business_dining': 7, 'elegant': 7}),
+        _real_entry('Outback Steakhouse', 'Zona 10', 'Steakhouse', 'Cadena Steakhouse', 'familiar', 4.3, 'premium', 280, 'Steakhouse de cadena con cortes generosos y ambiente casual.', 'premium', {'family_friendly': 7, 'premium': 7}),
+        _real_entry("Chili's", 'Zona 10', 'Internacional', 'Cadena Americana', 'familiar', 4.2, 'casual', 195, 'Cadena americana con burgers, ribs y ambiente familiar.', 'casual', {'family_friendly': 8, 'casual': 8}),
+        _real_entry("TGI Friday's", 'Zona 10', 'Internacional', 'Cadena Americana', 'nocturno', 4.2, 'casual', 200, 'Restaurante bar americano con ambiente festivo.', 'casual', {'nightlife': 7, 'lively': 8}),
+        _real_entry("Applebee's", 'Zona 10', 'Internacional', 'Cadena Americana', 'familiar', 4.1, 'casual', 185, 'Comida americana casual para grupos y familias.', 'casual', {'family_friendly': 8, 'casual': 8}),
+        _real_entry('Olive Garden', 'Zona 10', 'Italiana', 'Cadena Italiana', 'familiar', 4.2, 'casual', 210, 'Cadena italiana con pastas y pan de ajo iconico.', 'casual', {'pref_italiana': 7, 'family_friendly': 8}),
+        _real_entry("Tony Roma's", 'Zona 10', 'Internacional', 'Ribs House', 'familiar', 4.2, 'casual', 220, 'Costillas BBQ y platos americanos en cadena reconocida.', 'casual', {'comfort_food': 8, 'family_friendly': 7}),
+        _real_entry('IHOP', 'Zona 10', 'Internacional', 'Desayunos', 'familiar', 4.1, 'casual', 160, 'Desayunos y pancakes todo el dia.', 'casual', {'brunch': 8, 'family_friendly': 8}),
+        _real_entry("Denny's", 'Zona 10', 'Internacional', 'Diner', 'familiar', 4.0, 'casual', 155, 'Diner americano abierto 24 horas.', 'casual', {'comfort_food': 8, 'fast_service': 8}),
+        _real_entry('Wok to Walk', 'Zona 10', 'Asiatica', 'Wok Rapido', 'casual', 4.2, 'economico', 95, 'Wok personalizable de servicio rapido.', 'casual', {'fast_service': 9, 'asian_fusion': 7}),
+        _real_entry('Hard Rock Cafe', 'Zona 10', 'Internacional', 'Cadena Americana', 'nocturno', 4.3, 'premium', 250, 'Cadena iconica con musica en vivo y burgers.', 'premium', {'nightlife': 8, 'lively': 8}),
+        _real_entry('Frida Kahlo', 'Zona 14', 'Mexicana', 'Cocina Mexicana', 'trendy', 4.6, 'premium', 295, 'Sabores mexicanos autenticos con diseno vibrante.', 'premium', {'pref_mexicana': 10, 'lively': 8}),
+        _real_entry('Los Tres Tiempos', 'Zona 14', 'Guatemalteca', 'Cocina Guatemalteca', 'familiar', 4.7, 'premium', 265, 'Recetas guatemaltecas con enfoque moderno y porciones generosas.', 'premium', {'pref_guatemalteca': 10, 'comfort_food': 8}),
+        _real_entry('Marena', 'Zona 14', 'Mediterranea', 'Mediterraneo', 'elegante', 4.7, 'fine', 420, 'Pescados, aceite de oliva y vegetales de temporada.', 'premium', {'pref_mediterranea': 10, 'saludable': 8}),
+        _real_entry('Atempo', 'Zona 14', 'Fusion', 'Cocina de Autor', 'elegante', 4.7, 'fine', 485, 'Menu de temporada con tecnica moderna latinoeuropea.', 'luxury', {'exclusive': 9, 'gourmet': 9}),
+        _real_entry('Hacienda Real', 'Zona 14', 'Steakhouse', 'Steakhouse', 'elegante', 4.7, 'fine', 420, 'Sucursal Zona 14 del steakhouse iconico de Guatemala.', 'premium', {'business_dining': 9, 'premium': 9}),
+        _real_entry('Del Principe', 'Zona 14', 'Italiana', 'Ristorante', 'elegante', 4.5, 'premium', 300, 'Cocina italiana clasica con ambiente refinado.', 'premium', {'pref_italiana': 9, 'wine_focus': 7}),
+        _real_entry("P.F. Chang's", 'Zona 14', 'Asiatica', 'Cadena Asiatica', 'elegante', 4.4, 'premium', 250, 'Cocina asiatica contemporanea en Zona 14.', 'premium', {'asian_fusion': 8}),
+        _real_entry('Outback Steakhouse', 'Zona 14', 'Steakhouse', 'Cadena Steakhouse', 'familiar', 4.3, 'premium', 280, 'Steakhouse de cadena en Zona 14.', 'premium', {'family_friendly': 7}),
+        _real_entry('IHOP', 'Zona 14', 'Internacional', 'Desayunos', 'familiar', 4.1, 'casual', 160, 'Desayunos y pancakes en Zona 14.', 'casual', {'brunch': 8}),
+        _real_entry("Chili's", 'Zona 14', 'Internacional', 'Cadena Americana', 'familiar', 4.2, 'casual', 195, 'Cadena americana en Zona 14.', 'casual', {'family_friendly': 8}),
+        _real_entry('Kaffeine', 'Zona 15', 'Cafe', 'Cafe de Especialidad', 'brunch', 4.6, 'casual', 145, 'Cafe de especialidad, reposteria y brunch todo el dia.', 'cafe', {'coffee_culture': 10, 'brunch': 9}),
+        _real_entry('Cafe Leon', 'Zona 15', 'Cafe', 'Cafe', 'cozy', 4.4, 'casual', 120, 'Cafe guatemalteco con tradicion y panes frescos.', 'cafe', {'coffee_culture': 9, 'comfort_food': 7}),
+        _real_entry('San Martin', 'Zona 16', 'Cafe', 'Bakery Cafe', 'familiar', 4.6, 'casual', 140, 'Panaderia iconica con menu amplio para toda la familia en Cayala.', 'cafe', {'family_friendly': 9, 'coffee_culture': 8}),
+        _real_entry('Tre Fratelli', 'Zona 16', 'Italiana', 'Trattoria', 'elegante', 4.6, 'premium', 285, 'Sucursal Cayala de la trattoria italiana reconocida.', 'premium', {'pref_italiana': 10, 'romantic': 7}),
+        _real_entry('Pecorino', 'Zona 16', 'Italiana', 'Ristorante', 'romantico', 4.7, 'premium', 315, 'Pastas artesanales en el corazon de Cayala.', 'premium', {'pref_italiana': 10, 'wine_focus': 8}),
+        _real_entry('Porcino', 'Zona 16', 'Italiana', 'Steakhouse', 'elegante', 4.7, 'fine', 440, 'Cortes premium en Cayala.', 'luxury', {'premium': 9, 'business_dining': 9}),
+        _real_entry('Tablon del 8', 'Zona 16', 'Steakhouse', 'Steakhouse', 'elegante', 4.6, 'fine', 450, 'Parrilla premium en Cayala.', 'premium', {'premium': 9, 'business_dining': 9}),
+        _real_entry('Le Crepe', 'Zona 16', 'Francesa', 'Creperie', 'cozy', 4.3, 'casual', 150, 'Crepes en ambiente parisino en Cayala.', 'cafe', {'romantic': 6, 'brunch': 7}),
+        _real_entry('Hacienda Real', 'Zona 16', 'Steakhouse', 'Steakhouse', 'elegante', 4.7, 'fine', 420, 'Sucursal Cayala del iconico steakhouse guatemalteco.', 'premium', {'business_dining': 9, 'premium': 9}),
+        _real_entry('Rincon del Steak', 'Zona 16', 'Steakhouse', 'Steakhouse', 'elegante', 4.5, 'premium', 340, 'Parrilla reconocida en Cayala.', 'premium', {'premium': 8}),
+        _real_entry('Casa Chapina', 'Zona 16', 'Guatemalteca', 'Cocina Guatemalteca', 'familiar', 4.5, 'premium', 230, 'Comida guatemalteca tradicional en Cayala.', 'premium', {'pref_guatemalteca': 10, 'family_friendly': 8}),
+        _real_entry('Wok to Walk', 'Zona 16', 'Asiatica', 'Wok Rapido', 'casual', 4.2, 'economico', 95, 'Wok rapido en Cayala.', 'casual', {'fast_service': 9}),
+        _real_entry("Chili's", 'Zona 16', 'Internacional', 'Cadena Americana', 'familiar', 4.2, 'casual', 195, 'Cadena americana en Cayala.', 'casual', {'family_friendly': 8}),
+        _real_entry('Hacienda Real', 'Zona 11', 'Steakhouse', 'Steakhouse', 'familiar', 4.6, 'premium', 350, 'Sucursal Zona 11 del steakhouse nacional.', 'premium', {'family_friendly': 8, 'premium': 8}),
+        _real_entry('Pollo Campero', 'Zona 11', 'Guatemalteca', 'Pollo Frito', 'familiar', 4.3, 'economico', 75, 'Cadena guatemalteca de pollo frito, icono nacional.', 'casual', {'pref_guatemalteca': 8, 'fast_service': 9, 'family_friendly': 9}),
+        _real_entry('Pollo Campero', 'Zona 5', 'Guatemalteca', 'Pollo Frito', 'familiar', 4.3, 'economico', 75, 'Sucursal en Zona 5 de la cadena guatemalteca.', 'casual', {'pref_guatemalteca': 8, 'fast_service': 9}),
+        _real_entry('Pollo Campero', 'Zona 10', 'Guatemalteca', 'Pollo Frito', 'familiar', 4.3, 'economico', 80, 'Sucursal Zona 10 de Pollo Campero.', 'casual', {'pref_guatemalteca': 8, 'fast_service': 9}),
+        _real_entry('Pollo Campero', 'Zona 14', 'Guatemalteca', 'Pollo Frito', 'familiar', 4.3, 'economico', 80, 'Sucursal Zona 14 de Pollo Campero.', 'casual', {'pref_guatemalteca': 8, 'fast_service': 9}),
+        _real_entry('Pollo Campero', 'Zona 15', 'Guatemalteca', 'Pollo Frito', 'familiar', 4.3, 'economico', 75, 'Sucursal Zona 15 de Pollo Campero.', 'casual', {'pref_guatemalteca': 8, 'fast_service': 9}),
+        _real_entry('Pollo Campero', 'Zona 16', 'Guatemalteca', 'Pollo Frito', 'familiar', 4.3, 'economico', 80, 'Sucursal Cayala de Pollo Campero.', 'casual', {'pref_guatemalteca': 8, 'fast_service': 9}),
+        _real_entry('Mansión del Río', 'Zona 10', 'Internacional', 'Hotel Restaurante', 'elegante', 4.5, 'fine', 400, 'Restaurante de hotel con vista y cocina internacional.', 'luxury', {'elegant': 9, 'romantic': 8}),
+        _real_entry('Caffe Milano', 'Zona 10', 'Italiana', 'Cafe Restaurante', 'elegante', 4.4, 'premium', 240, 'Cafe italiano con pastas y ambiente europeo.', 'premium', {'pref_italiana': 8, 'coffee_culture': 7}),
+        _real_entry('La Pampa', 'Zona 10', 'Steakhouse', 'Parrilla Argentina', 'elegante', 4.5, 'premium', 330, 'Parrilla argentina con cortes y empanadas.', 'premium', {'premium': 8, 'gourmet': 7}),
+        _real_entry('Nuestra Cerveceria', 'Zona 10', 'Internacional', 'Cerveceria', 'nocturno', 4.4, 'casual', 180, 'Cerveza artesanal guatemalteca y platos para compartir.', 'casual', {'craft_beer': 9, 'nightlife': 7, 'social_grupo': 8}),
+        _real_entry('Cerveceria 14', 'Zona 14', 'Internacional', 'Cerveceria', 'nocturno', 4.3, 'casual', 175, 'Cerveceria con ambiente social en Zona 14.', 'casual', {'craft_beer': 8, 'social_grupo': 8}),
+        _real_entry('Rustica', 'Zona 10', 'Italiana', 'Pizzeria', 'familiar', 4.3, 'casual', 165, 'Pizza rustica al horno de lena.', 'casual', {'pref_italiana': 8, 'family_friendly': 7}),
+        _real_entry('Milagrito', 'Zona 10', 'Mexicana', 'Cantina', 'nocturno', 4.3, 'casual', 170, 'Cantina mexicana con ambiente festivo.', 'casual', {'pref_mexicana': 8, 'nightlife': 7}),
+        _real_entry('Punto Mediterraneo', 'Zona 10', 'Mediterranea', 'Mediterraneo', 'elegante', 4.4, 'premium', 260, 'Cocina mediterranea con pescados y pastas.', 'premium', {'pref_mediterranea': 9}),
+        _real_entry('Gramo', 'Zona 10', 'Internacional', 'Bistro', 'trendy', 4.3, 'premium', 230, 'Bistro contemporaneo con platos de autor accesibles.', 'premium', {'trendy': 8}),
+        _real_entry('El Invernadero', 'Zona 10', 'Saludable', 'Healthy Kitchen', 'trendy', 4.4, 'casual', 175, 'Cocina vegetal y organica en ambiente luminoso.', 'cafe', {'saludable': 9, 'aesthetic': 8}),
+        _real_entry('Cielito Lindo', 'Zona 10', 'Mexicana', 'Cocina Mexicana', 'familiar', 4.3, 'casual', 160, 'Comida mexicana tradicional en ambiente colorido.', 'casual', {'pref_mexicana': 8, 'family_friendly': 7}),
+        _real_entry('Isabelle', 'Zona 10', 'Francesa', 'Bistro', 'romantico', 4.4, 'premium', 270, 'Bistro frances con postres y vinos selectos.', 'premium', {'elegant': 8, 'romantic': 7}),
+        _real_entry('Fiore Pasta Bar', 'Zona 10', 'Italiana', 'Pasta Bar', 'trendy', 4.3, 'casual', 185, 'Pastas frescas en barra abierta.', 'casual', {'pref_italiana': 8, 'trendy': 7}),
+        _real_entry('Renata', 'Zona 16', 'Cafe', 'Pasteleria', 'familiar', 4.5, 'casual', 130, 'Pasteleria y reposteria reconocida en Cayala.', 'cafe', {'coffee_culture': 8, 'family_friendly': 8}),
+        _real_entry('Cinnabon', 'Zona 16', 'Cafe', 'Reposteria', 'casual', 4.2, 'economico', 80, 'Rollos de canela y cafe en Cayala.', 'casual', {'comfort_food': 7, 'fast_service': 8}),
+        _real_entry('Sarita', 'Zona 10', 'Cafe', 'Heladeria', 'familiar', 4.4, 'economico', 60, 'Helados Sarita, marca guatemalteca iconica.', 'casual', {'family_friendly': 9, 'comfort_food': 7}),
+        _real_entry('Sarita', 'Zona 11', 'Cafe', 'Heladeria', 'familiar', 4.4, 'economico', 55, 'Helados Sarita en Zona 11.', 'casual', {'family_friendly': 9}),
+        _real_entry('Sarita', 'Zona 16', 'Cafe', 'Heladeria', 'familiar', 4.4, 'economico', 60, 'Helados Sarita en Cayala.', 'casual', {'family_friendly': 9}),
+        _real_entry('Eskimo', 'Zona 10', 'Cafe', 'Heladeria', 'familiar', 4.3, 'economico', 55, 'Helados Eskimo, tradicion guatemalteca.', 'casual', {'family_friendly': 8}),
+        _real_entry('Eskimo', 'Zona 5', 'Cafe', 'Heladeria', 'familiar', 4.3, 'economico', 50, 'Helados Eskimo en Zona 5.', 'casual', {'family_friendly': 8}),
+        _real_entry('China Wok', 'Zona 10', 'Asiatica', 'Comida China', 'casual', 4.1, 'economico', 100, 'Comida china rapida y accesible.', 'casual', {'asian_fusion': 7, 'fast_service': 8}),
+        _real_entry('China Wok', 'Zona 11', 'Asiatica', 'Comida China', 'casual', 4.1, 'economico', 95, 'Comida china en Zona 11.', 'casual', {'asian_fusion': 7, 'fast_service': 8}),
+        _real_entry('Bento Box', 'Zona 10', 'Japonesa', 'Bento', 'casual', 4.2, 'economico', 110, 'Bentos y comida japonesa rapida.', 'casual', {'pref_japonesa': 7, 'fast_service': 8}),
+        _real_entry('Bento Box', 'Zona 16', 'Japonesa', 'Bento', 'casual', 4.2, 'economico', 110, 'Bentos japoneses en Cayala.', 'casual', {'pref_japonesa': 7, 'fast_service': 8}),
+        _real_entry('Nuestra Cerveceria', 'Zona 16', 'Internacional', 'Cerveceria', 'nocturno', 4.4, 'casual', 180, 'Cerveceria artesanal en Cayala.', 'casual', {'craft_beer': 9, 'social_grupo': 8}),
+        _real_entry('Nikkei', 'Zona 10', 'Peruana', 'Nikkei', 'trendy', 4.5, 'premium', 320, 'Cocina nikkei peruano-japonesa reconocida en la ciudad.', 'premium', {'asian_fusion': 9, 'aventurero': 8}),
+        _real_entry('Nikkei', 'Zona 14', 'Peruana', 'Nikkei', 'trendy', 4.5, 'premium', 320, 'Propuesta nikkei en Zona 14.', 'premium', {'asian_fusion': 9}),
+        _real_entry('Comida China Moon', 'Zona 10', 'Asiatica', 'Comida China', 'casual', 4.2, 'economico', 105, 'Comida china buffet reconocida en Guatemala.', 'casual', {'asian_fusion': 7, 'family_friendly': 7}),
+        _real_entry('Comida China Moon', 'Zona 11', 'Asiatica', 'Comida China', 'casual', 4.2, 'economico', 100, 'Buffet chino accesible en Zona 11.', 'casual', {'asian_fusion': 7}),
+        _real_entry('Little Caesars', 'Zona 10', 'Internacional', 'Pizzeria', 'familiar', 4.0, 'economico', 90, 'Pizza rapida de cadena internacional.', 'casual', {'fast_service': 9}),
+        _real_entry("Papa John's", 'Zona 10', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 115, 'Pizza a domicilio de cadena internacional.', 'casual', {'fast_service': 8}),
+        _real_entry('Dunkin', 'Zona 10', 'Cafe', 'Cafe y Donas', 'casual', 4.1, 'economico', 75, 'Cafe y donas de cadena internacional.', 'casual', {'coffee_culture': 7, 'fast_service': 9}),
+        _real_entry('Dunkin', 'Zona 16', 'Cafe', 'Cafe y Donas', 'casual', 4.1, 'economico', 75, 'Dunkin en Cayala.', 'casual', {'coffee_culture': 7, 'fast_service': 9}),
+        _real_entry('De Cero', 'Zona 10', 'Saludable', 'Ensaladas', 'casual', 4.3, 'casual', 120, 'Cadena de ensaladas y bowls personalizables.', 'cafe', {'saludable': 9, 'fast_service': 8}),
+        _real_entry('De Cero', 'Zona 14', 'Saludable', 'Ensaladas', 'casual', 4.3, 'casual', 120, 'Ensaladas frescas en Zona 14.', 'cafe', {'saludable': 9}),
+        _real_entry('De Cero', 'Zona 15', 'Saludable', 'Ensaladas', 'casual', 4.3, 'casual', 115, 'Bowls saludables en Zona 15.', 'cafe', {'saludable': 9}),
+        _real_entry('De Cero', 'Zona 16', 'Saludable', 'Ensaladas', 'casual', 4.3, 'casual', 120, 'Ensaladas en Cayala.', 'cafe', {'saludable': 9}),
+        _real_entry('Los Cebollines', 'Zona 11', 'Mexicana', 'Cadena Mexicana', 'familiar', 4.3, 'economico', 85, 'Cadena mexicana guatemalteca con tacos, burritos y ambiente familiar.', 'casual', {'pref_mexicana': 9, 'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('Los Cebollines', 'Zona 14', 'Mexicana', 'Cadena Mexicana', 'familiar', 4.3, 'economico', 85, 'Cadena mexicana guatemalteca con tacos, burritos y ambiente familiar.', 'casual', {'pref_mexicana': 9, 'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('Los Cebollines', 'Zona 15', 'Mexicana', 'Cadena Mexicana', 'familiar', 4.3, 'economico', 85, 'Cadena mexicana guatemalteca con tacos, burritos y ambiente familiar.', 'casual', {'pref_mexicana': 9, 'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('Los Cebollines', 'Zona 16', 'Mexicana', 'Cadena Mexicana', 'familiar', 4.3, 'economico', 85, 'Cadena mexicana guatemalteca con tacos, burritos y ambiente familiar.', 'casual', {'pref_mexicana': 9, 'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('Los Cebollines', 'Zona 5', 'Mexicana', 'Cadena Mexicana', 'familiar', 4.3, 'economico', 85, 'Cadena mexicana guatemalteca con tacos, burritos y ambiente familiar.', 'casual', {'pref_mexicana': 9, 'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('San Martin', 'Zona 10', 'Cafe', 'Bakery Cafe', 'familiar', 4.5, 'casual', 135, 'Panaderia y cafe reconocida en Guatemala.', 'cafe', {'family_friendly': 9, 'coffee_culture': 8}),
+        _real_entry('San Martin', 'Zona 11', 'Cafe', 'Bakery Cafe', 'familiar', 4.5, 'casual', 135, 'Panaderia y cafe reconocida en Guatemala.', 'cafe', {'family_friendly': 9, 'coffee_culture': 8}),
+        _real_entry('San Martin', 'Zona 14', 'Cafe', 'Bakery Cafe', 'familiar', 4.5, 'casual', 135, 'Panaderia y cafe reconocida en Guatemala.', 'cafe', {'family_friendly': 9, 'coffee_culture': 8}),
+        _real_entry('San Martin', 'Zona 15', 'Cafe', 'Bakery Cafe', 'familiar', 4.5, 'casual', 135, 'Panaderia y cafe reconocida en Guatemala.', 'cafe', {'family_friendly': 9, 'coffee_culture': 8}),
+        _real_entry('San Martin', 'Zona 5', 'Cafe', 'Bakery Cafe', 'familiar', 4.5, 'casual', 135, 'Panaderia y cafe reconocida en Guatemala.', 'cafe', {'family_friendly': 9, 'coffee_culture': 8}),
+        _real_entry('Cafe Leon', 'Zona 10', 'Cafe', 'Cafe', 'cozy', 4.3, 'economico', 95, 'Cafe tradicional guatemalteco con panes y desayunos.', 'cafe', {'coffee_culture': 9, 'comfort_food': 7}),
+        _real_entry('Cafe Leon', 'Zona 11', 'Cafe', 'Cafe', 'cozy', 4.3, 'economico', 95, 'Cafe tradicional guatemalteco con panes y desayunos.', 'cafe', {'coffee_culture': 9, 'comfort_food': 7}),
+        _real_entry('Cafe Leon', 'Zona 14', 'Cafe', 'Cafe', 'cozy', 4.3, 'economico', 95, 'Cafe tradicional guatemalteco con panes y desayunos.', 'cafe', {'coffee_culture': 9, 'comfort_food': 7}),
+        _real_entry('Cafe Leon', 'Zona 16', 'Cafe', 'Cafe', 'cozy', 4.3, 'economico', 95, 'Cafe tradicional guatemalteco con panes y desayunos.', 'cafe', {'coffee_culture': 9, 'comfort_food': 7}),
+        _real_entry('Cafe Leon', 'Zona 5', 'Cafe', 'Cafe', 'cozy', 4.3, 'economico', 95, 'Cafe tradicional guatemalteco con panes y desayunos.', 'cafe', {'coffee_culture': 9, 'comfort_food': 7}),
+        _real_entry('Barista', 'Zona 10', 'Cafe', 'Cafe de Especialidad', 'trendy', 4.4, 'casual', 115, 'Cadena de cafe de especialidad en Guatemala.', 'cafe', {'coffee_culture': 9, 'aesthetic': 7}),
+        _real_entry('Barista', 'Zona 11', 'Cafe', 'Cafe de Especialidad', 'trendy', 4.4, 'casual', 115, 'Cadena de cafe de especialidad en Guatemala.', 'cafe', {'coffee_culture': 9, 'aesthetic': 7}),
+        _real_entry('Barista', 'Zona 14', 'Cafe', 'Cafe de Especialidad', 'trendy', 4.4, 'casual', 115, 'Cadena de cafe de especialidad en Guatemala.', 'cafe', {'coffee_culture': 9, 'aesthetic': 7}),
+        _real_entry('Barista', 'Zona 15', 'Cafe', 'Cafe de Especialidad', 'trendy', 4.4, 'casual', 115, 'Cadena de cafe de especialidad en Guatemala.', 'cafe', {'coffee_culture': 9, 'aesthetic': 7}),
+        _real_entry('Barista', 'Zona 16', 'Cafe', 'Cafe de Especialidad', 'trendy', 4.4, 'casual', 115, 'Cadena de cafe de especialidad en Guatemala.', 'cafe', {'coffee_culture': 9, 'aesthetic': 7}),
+        _real_entry('Barista', 'Zona 5', 'Cafe', 'Cafe de Especialidad', 'trendy', 4.4, 'casual', 115, 'Cadena de cafe de especialidad en Guatemala.', 'cafe', {'coffee_culture': 9, 'aesthetic': 7}),
+        _real_entry('Starbucks', 'Zona 10', 'Cafe', 'Cafe de Cadena', 'casual', 4.2, 'casual', 110, 'Cafe de cadena internacional con bebidas y reposteria.', 'cafe', {'coffee_culture': 8, 'fast_service': 8}),
+        _real_entry('Starbucks', 'Zona 11', 'Cafe', 'Cafe de Cadena', 'casual', 4.2, 'casual', 110, 'Cafe de cadena internacional con bebidas y reposteria.', 'cafe', {'coffee_culture': 8, 'fast_service': 8}),
+        _real_entry('Starbucks', 'Zona 14', 'Cafe', 'Cafe de Cadena', 'casual', 4.2, 'casual', 110, 'Cafe de cadena internacional con bebidas y reposteria.', 'cafe', {'coffee_culture': 8, 'fast_service': 8}),
+        _real_entry('Starbucks', 'Zona 15', 'Cafe', 'Cafe de Cadena', 'casual', 4.2, 'casual', 110, 'Cafe de cadena internacional con bebidas y reposteria.', 'cafe', {'coffee_culture': 8, 'fast_service': 8}),
+        _real_entry('Starbucks', 'Zona 16', 'Cafe', 'Cafe de Cadena', 'casual', 4.2, 'casual', 110, 'Cafe de cadena internacional con bebidas y reposteria.', 'cafe', {'coffee_culture': 8, 'fast_service': 8}),
+        _real_entry('Starbucks', 'Zona 5', 'Cafe', 'Cafe de Cadena', 'casual', 4.2, 'casual', 110, 'Cafe de cadena internacional con bebidas y reposteria.', 'cafe', {'coffee_culture': 8, 'fast_service': 8}),
+        _real_entry('Tip Top', 'Zona 10', 'Internacional', 'Cadena Guatemalteca', 'familiar', 4.2, 'economico', 90, 'Cadena guatemalteca de comida rapida y platos tradicionales.', 'casual', {'pref_guatemalteca': 7, 'fast_service': 9, 'family_friendly': 8}),
+        _real_entry('Tip Top', 'Zona 11', 'Internacional', 'Cadena Guatemalteca', 'familiar', 4.2, 'economico', 90, 'Cadena guatemalteca de comida rapida y platos tradicionales.', 'casual', {'pref_guatemalteca': 7, 'fast_service': 9, 'family_friendly': 8}),
+        _real_entry('Tip Top', 'Zona 14', 'Internacional', 'Cadena Guatemalteca', 'familiar', 4.2, 'economico', 90, 'Cadena guatemalteca de comida rapida y platos tradicionales.', 'casual', {'pref_guatemalteca': 7, 'fast_service': 9, 'family_friendly': 8}),
+        _real_entry('Tip Top', 'Zona 15', 'Internacional', 'Cadena Guatemalteca', 'familiar', 4.2, 'economico', 90, 'Cadena guatemalteca de comida rapida y platos tradicionales.', 'casual', {'pref_guatemalteca': 7, 'fast_service': 9, 'family_friendly': 8}),
+        _real_entry('Tip Top', 'Zona 16', 'Internacional', 'Cadena Guatemalteca', 'familiar', 4.2, 'economico', 90, 'Cadena guatemalteca de comida rapida y platos tradicionales.', 'casual', {'pref_guatemalteca': 7, 'fast_service': 9, 'family_friendly': 8}),
+        _real_entry('Tip Top', 'Zona 5', 'Internacional', 'Cadena Guatemalteca', 'familiar', 4.2, 'economico', 90, 'Cadena guatemalteca de comida rapida y platos tradicionales.', 'casual', {'pref_guatemalteca': 7, 'fast_service': 9, 'family_friendly': 8}),
+        _real_entry('Pizza Hut', 'Zona 10', 'Internacional', 'Pizzeria', 'familiar', 4.1, 'economico', 120, 'Pizzeria de cadena internacional.', 'casual', {'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('Pizza Hut', 'Zona 11', 'Internacional', 'Pizzeria', 'familiar', 4.1, 'economico', 120, 'Pizzeria de cadena internacional.', 'casual', {'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('Pizza Hut', 'Zona 14', 'Internacional', 'Pizzeria', 'familiar', 4.1, 'economico', 120, 'Pizzeria de cadena internacional.', 'casual', {'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('Pizza Hut', 'Zona 15', 'Internacional', 'Pizzeria', 'familiar', 4.1, 'economico', 120, 'Pizzeria de cadena internacional.', 'casual', {'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('Pizza Hut', 'Zona 16', 'Internacional', 'Pizzeria', 'familiar', 4.1, 'economico', 120, 'Pizzeria de cadena internacional.', 'casual', {'family_friendly': 8, 'fast_service': 8}),
+        _real_entry('Pizza Hut', 'Zona 5', 'Internacional', 'Pizzeria', 'familiar', 4.1, 'economico', 120, 'Pizzeria de cadena internacional.', 'casual', {'family_friendly': 8, 'fast_service': 8}),
+        _real_entry("Domino's Pizza", 'Zona 10', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 110, 'Pizza a domicilio y local de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry("Domino's Pizza", 'Zona 11', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 110, 'Pizza a domicilio y local de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry("Domino's Pizza", 'Zona 14', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 110, 'Pizza a domicilio y local de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry("Domino's Pizza", 'Zona 15', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 110, 'Pizza a domicilio y local de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry("Domino's Pizza", 'Zona 16', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 110, 'Pizza a domicilio y local de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry("Domino's Pizza", 'Zona 5', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 110, 'Pizza a domicilio y local de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry('Subway', 'Zona 10', 'Internacional', 'Sandwiches', 'casual', 4.0, 'economico', 70, 'Sandwiches personalizables de cadena global.', 'casual', {'fast_service': 9, 'saludable': 5}),
+        _real_entry('Subway', 'Zona 11', 'Internacional', 'Sandwiches', 'casual', 4.0, 'economico', 70, 'Sandwiches personalizables de cadena global.', 'casual', {'fast_service': 9, 'saludable': 5}),
+        _real_entry('Subway', 'Zona 14', 'Internacional', 'Sandwiches', 'casual', 4.0, 'economico', 70, 'Sandwiches personalizables de cadena global.', 'casual', {'fast_service': 9, 'saludable': 5}),
+        _real_entry('Subway', 'Zona 15', 'Internacional', 'Sandwiches', 'casual', 4.0, 'economico', 70, 'Sandwiches personalizables de cadena global.', 'casual', {'fast_service': 9, 'saludable': 5}),
+        _real_entry('Subway', 'Zona 16', 'Internacional', 'Sandwiches', 'casual', 4.0, 'economico', 70, 'Sandwiches personalizables de cadena global.', 'casual', {'fast_service': 9, 'saludable': 5}),
+        _real_entry('Subway', 'Zona 5', 'Internacional', 'Sandwiches', 'casual', 4.0, 'economico', 70, 'Sandwiches personalizables de cadena global.', 'casual', {'fast_service': 9, 'saludable': 5}),
+        _real_entry("McDonald's", 'Zona 10', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 65, 'Cadena global de comida rapida.', 'casual', {'fast_service': 10, 'family_friendly': 8}),
+        _real_entry("McDonald's", 'Zona 11', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 65, 'Cadena global de comida rapida.', 'casual', {'fast_service': 10, 'family_friendly': 8}),
+        _real_entry("McDonald's", 'Zona 14', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 65, 'Cadena global de comida rapida.', 'casual', {'fast_service': 10, 'family_friendly': 8}),
+        _real_entry("McDonald's", 'Zona 15', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 65, 'Cadena global de comida rapida.', 'casual', {'fast_service': 10, 'family_friendly': 8}),
+        _real_entry("McDonald's", 'Zona 16', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 65, 'Cadena global de comida rapida.', 'casual', {'fast_service': 10, 'family_friendly': 8}),
+        _real_entry("McDonald's", 'Zona 5', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 65, 'Cadena global de comida rapida.', 'casual', {'fast_service': 10, 'family_friendly': 8}),
+        _real_entry('Burger King', 'Zona 10', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Hamburguesas de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry('Burger King', 'Zona 11', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Hamburguesas de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry('Burger King', 'Zona 14', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Hamburguesas de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry('Burger King', 'Zona 15', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Hamburguesas de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry('Burger King', 'Zona 16', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Hamburguesas de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry('Burger King', 'Zona 5', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Hamburguesas de cadena internacional.', 'casual', {'fast_service': 9, 'comfort_food': 7}),
+        _real_entry("Wendy's", 'Zona 10', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 75, 'Hamburguesas y frosty de cadena americana.', 'casual', {'fast_service': 9}),
+        _real_entry("Wendy's", 'Zona 11', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 75, 'Hamburguesas y frosty de cadena americana.', 'casual', {'fast_service': 9}),
+        _real_entry("Wendy's", 'Zona 14', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 75, 'Hamburguesas y frosty de cadena americana.', 'casual', {'fast_service': 9}),
+        _real_entry("Wendy's", 'Zona 15', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 75, 'Hamburguesas y frosty de cadena americana.', 'casual', {'fast_service': 9}),
+        _real_entry("Wendy's", 'Zona 16', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 75, 'Hamburguesas y frosty de cadena americana.', 'casual', {'fast_service': 9}),
+        _real_entry("Wendy's", 'Zona 5', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 75, 'Hamburguesas y frosty de cadena americana.', 'casual', {'fast_service': 9}),
+        _real_entry('Taco Bell', 'Zona 10', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Comida mexicana rapida de cadena internacional.', 'casual', {'pref_mexicana': 6, 'fast_service': 9}),
+        _real_entry('Taco Bell', 'Zona 11', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Comida mexicana rapida de cadena internacional.', 'casual', {'pref_mexicana': 6, 'fast_service': 9}),
+        _real_entry('Taco Bell', 'Zona 14', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Comida mexicana rapida de cadena internacional.', 'casual', {'pref_mexicana': 6, 'fast_service': 9}),
+        _real_entry('Taco Bell', 'Zona 15', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Comida mexicana rapida de cadena internacional.', 'casual', {'pref_mexicana': 6, 'fast_service': 9}),
+        _real_entry('Taco Bell', 'Zona 16', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Comida mexicana rapida de cadena internacional.', 'casual', {'pref_mexicana': 6, 'fast_service': 9}),
+        _real_entry('Taco Bell', 'Zona 5', 'Internacional', 'Comida Rapida', 'casual', 4.0, 'economico', 70, 'Comida mexicana rapida de cadena internacional.', 'casual', {'pref_mexicana': 6, 'fast_service': 9}),
+        _real_entry('KFC', 'Zona 10', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 75, 'Pollo frito de cadena internacional.', 'casual', {'fast_service': 9, 'family_friendly': 7}),
+        _real_entry('KFC', 'Zona 11', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 75, 'Pollo frito de cadena internacional.', 'casual', {'fast_service': 9, 'family_friendly': 7}),
+        _real_entry('KFC', 'Zona 14', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 75, 'Pollo frito de cadena internacional.', 'casual', {'fast_service': 9, 'family_friendly': 7}),
+        _real_entry('KFC', 'Zona 15', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 75, 'Pollo frito de cadena internacional.', 'casual', {'fast_service': 9, 'family_friendly': 7}),
+        _real_entry('KFC', 'Zona 16', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 75, 'Pollo frito de cadena internacional.', 'casual', {'fast_service': 9, 'family_friendly': 7}),
+        _real_entry('KFC', 'Zona 5', 'Internacional', 'Comida Rapida', 'familiar', 4.0, 'economico', 75, 'Pollo frito de cadena internacional.', 'casual', {'fast_service': 9, 'family_friendly': 7}),
+        _real_entry('Dunkin', 'Zona 11', 'Cafe', 'Cafe y Donas', 'casual', 4.1, 'economico', 75, 'Cafe y donas de cadena internacional.', 'casual', {'coffee_culture': 7, 'fast_service': 9}),
+        _real_entry('Dunkin', 'Zona 14', 'Cafe', 'Cafe y Donas', 'casual', 4.1, 'economico', 75, 'Cafe y donas de cadena internacional.', 'casual', {'coffee_culture': 7, 'fast_service': 9}),
+        _real_entry('Dunkin', 'Zona 15', 'Cafe', 'Cafe y Donas', 'casual', 4.1, 'economico', 75, 'Cafe y donas de cadena internacional.', 'casual', {'coffee_culture': 7, 'fast_service': 9}),
+        _real_entry('Dunkin', 'Zona 5', 'Cafe', 'Cafe y Donas', 'casual', 4.1, 'economico', 75, 'Cafe y donas de cadena internacional.', 'casual', {'coffee_culture': 7, 'fast_service': 9}),
+        _real_entry('De Cero', 'Zona 11', 'Saludable', 'Ensaladas', 'casual', 4.3, 'casual', 120, 'Cadena de ensaladas y bowls personalizables.', 'cafe', {'saludable': 9, 'fast_service': 8}),
+        _real_entry('De Cero', 'Zona 5', 'Saludable', 'Ensaladas', 'casual', 4.3, 'casual', 120, 'Cadena de ensaladas y bowls personalizables.', 'cafe', {'saludable': 9, 'fast_service': 8}),
+        _real_entry('Little Caesars', 'Zona 11', 'Internacional', 'Pizzeria', 'familiar', 4.0, 'economico', 90, 'Pizza rapida de cadena internacional.', 'casual', {'fast_service': 9}),
+        _real_entry('Little Caesars', 'Zona 14', 'Internacional', 'Pizzeria', 'familiar', 4.0, 'economico', 90, 'Pizza rapida de cadena internacional.', 'casual', {'fast_service': 9}),
+        _real_entry('Little Caesars', 'Zona 15', 'Internacional', 'Pizzeria', 'familiar', 4.0, 'economico', 90, 'Pizza rapida de cadena internacional.', 'casual', {'fast_service': 9}),
+        _real_entry('Little Caesars', 'Zona 16', 'Internacional', 'Pizzeria', 'familiar', 4.0, 'economico', 90, 'Pizza rapida de cadena internacional.', 'casual', {'fast_service': 9}),
+        _real_entry('Little Caesars', 'Zona 5', 'Internacional', 'Pizzeria', 'familiar', 4.0, 'economico', 90, 'Pizza rapida de cadena internacional.', 'casual', {'fast_service': 9}),
+        _real_entry("Papa John's", 'Zona 11', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 115, 'Pizza a domicilio de cadena internacional.', 'casual', {'fast_service': 8}),
+        _real_entry("Papa John's", 'Zona 14', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 115, 'Pizza a domicilio de cadena internacional.', 'casual', {'fast_service': 8}),
+        _real_entry("Papa John's", 'Zona 15', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 115, 'Pizza a domicilio de cadena internacional.', 'casual', {'fast_service': 8}),
+        _real_entry("Papa John's", 'Zona 16', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 115, 'Pizza a domicilio de cadena internacional.', 'casual', {'fast_service': 8}),
+        _real_entry("Papa John's", 'Zona 5', 'Internacional', 'Pizzeria', 'casual', 4.0, 'economico', 115, 'Pizza a domicilio de cadena internacional.', 'casual', {'fast_service': 8}),
+    ]
+    for idx, restaurant in enumerate(rows, start=1):
         restaurant["id"] = f"gc_{idx:03d}"
-
-    return restaurants
+    report = validate_restaurant_catalog(rows)
+    if not report["valid"]:
+        sample = report["issues"][:5]
+        raise ValueError("Catalogo con clasificacion invalida: %s" % sample)
+    return rows
 
 
 RESTAURANTS = build_catalog()

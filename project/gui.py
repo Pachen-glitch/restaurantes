@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import threading
 import tkinter as tk
-from datetime import datetime
 from tkinter import messagebox, ttk
 
 import database
@@ -37,18 +36,11 @@ from user_manager import (
 )
 from restaurant_importer import import_guatemala_restaurants
 
-FOODIE_QUOTES = [
-    "Hoy es buen día para descubrir un sabor nuevo.",
-    "Tu paladar merece una experiencia memorable.",
-    "La mesa perfecta existe — la IA te ayuda a encontrarla.",
-    "Come bien, vive mejor, explora Guatemala.",
-]
-
 
 class RestaurantApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Savory — Descubrimiento gastronómico con IA")
+        self.title("Savory — Guatemala City")
         self.minsize(1280, 760)
         self.geometry("1360x820")
 
@@ -61,7 +53,6 @@ class RestaurantApp(tk.Tk):
         self._rec_rows: list[dict] = []
         self._pages: dict[str, ttk.Frame] = {}
         self._loading_overlay: LoadingOverlay | None = None
-        self._quote_index = 0
 
         self._build_layout()
         self._set_status("Iniciando...")
@@ -69,39 +60,50 @@ class RestaurantApp(tk.Tk):
 
     def _build_layout(self):
         self._active_user_var = tk.StringVar(value="")
-        self._greeting_var = tk.StringVar(value="Bienvenido a Savory")
-        self._quote_var = tk.StringVar(value=FOODIE_QUOTES[0])
-        self._datetime_var = tk.StringVar(value="")
+        self._header_tagline_var = tk.StringVar(value="Buen apetito 🍷")
 
-        header = tk.Frame(self, bg=styles.COLORS["header"], height=84)
+        header = tk.Frame(self, bg=styles.COLORS["header"], height=styles.SPACING["header_height"])
         header.pack(fill=tk.X)
         header.pack_propagate(False)
         tk.Frame(header, bg=styles.COLORS["header_border"], height=1).pack(side=tk.BOTTOM, fill=tk.X)
 
         left_h = tk.Frame(header, bg=styles.COLORS["header"])
-        left_h.pack(side=tk.LEFT, padx=32, pady=14)
-        tk.Label(left_h, text="🍷 Savory", font=styles.FONTS["title"], fg=styles.COLORS["accent"], bg=styles.COLORS["header"]).pack(anchor=tk.W)
-        tk.Label(left_h, textvariable=self._greeting_var, font=styles.FONTS["subtitle"], fg=styles.COLORS["text"], bg=styles.COLORS["header"]).pack(anchor=tk.W, pady=(2, 0))
-        tk.Label(left_h, textvariable=self._quote_var, font=styles.FONTS["header_tag"], fg=styles.COLORS["subtext"], bg=styles.COLORS["header"]).pack(anchor=tk.W, pady=(2, 0))
+        left_h.pack(side=tk.LEFT, padx=styles.SPACING["page_x"], pady=18)
+        tk.Label(
+            left_h,
+            text="Savory",
+            font=styles.FONTS["brand"],
+            fg=styles.COLORS["accent"],
+            bg=styles.COLORS["header"],
+        ).pack(anchor=tk.W)
 
         right_h = tk.Frame(header, bg=styles.COLORS["header"])
-        right_h.pack(side=tk.RIGHT, padx=32, pady=14)
-        avatar = tk.Label(right_h, text="👤", font=("Segoe UI", 22), bg=styles.COLORS["surface3"], fg=styles.COLORS["text"], width=2, padx=6, pady=2)
-        avatar.pack(side=tk.RIGHT, padx=(12, 0))
-        meta = tk.Frame(right_h, bg=styles.COLORS["header"])
-        meta.pack(side=tk.RIGHT)
-        tk.Label(meta, textvariable=self._datetime_var, font=styles.FONTS["small"], fg=styles.COLORS["muted"], bg=styles.COLORS["header"]).pack(anchor=tk.E)
+        right_h.pack(side=tk.RIGHT, padx=styles.SPACING["page_x"], pady=18)
         self._user_chip = tk.Label(
-            meta,
+            right_h,
             textvariable=self._active_user_var,
             font=styles.FONTS["badge"],
             fg=styles.COLORS["text_light"],
             bg=styles.COLORS["accent2"],
-            padx=14,
-            pady=6,
+            padx=12,
+            pady=5,
         )
-        self._tick_datetime()
-        self._rotate_quote()
+        tk.Label(
+            right_h,
+            text="👤",
+            font=("Segoe UI", 18),
+            bg=styles.COLORS["surface3"],
+            fg=styles.COLORS["text"],
+            padx=8,
+            pady=4,
+        ).pack(side=tk.RIGHT)
+        tk.Label(
+            right_h,
+            textvariable=self._header_tagline_var,
+            font=styles.FONTS["header_tag"],
+            fg=styles.COLORS["muted"],
+            bg=styles.COLORS["header"],
+        ).pack(side=tk.RIGHT, padx=(0, 14))
 
         body = tk.Frame(self, bg=styles.COLORS["bg"])
         body.pack(fill=tk.BOTH, expand=True)
@@ -109,7 +111,7 @@ class RestaurantApp(tk.Tk):
         self.sidebar = Sidebar(body, on_navigate=self._show_page)
         self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
 
-        self.main = ttk.Frame(body, style="Content.TFrame", padding=(32, 28))
+        self.main = ttk.Frame(body, style="Content.TFrame", padding=styles.SPACING["page_pad"])
         self.main.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         self._build_page_home()
@@ -161,15 +163,19 @@ class RestaurantApp(tk.Tk):
 
     def _section_title(self, parent, title: str, subtitle: str = ""):
         box = ttk.Frame(parent, style="Content.TFrame")
-        box.pack(fill=tk.X, pady=(0, 16))
+        box.pack(fill=tk.X, pady=(0, styles.SPACING["section_gap"]))
         ttk.Label(box, text=title, style="Hero.TLabel").pack(anchor=tk.W)
         if subtitle:
-            ttk.Label(box, text=subtitle, style="Muted.TLabel").pack(anchor=tk.W, pady=(4, 0))
+            ttk.Label(box, text=subtitle, style="Muted.TLabel").pack(anchor=tk.W, pady=(6, 0))
         return box
 
     def _build_page_home(self):
         f = self._page("home")
-        HeroBanner(f, on_explore=lambda: self._nav("rec")).pack(fill=tk.X, pady=(0, 20))
+        HeroBanner(
+            f,
+            on_create_profile=self._start_create_profile,
+            on_explore=lambda: self._nav("rec"),
+        ).pack(fill=tk.X, pady=(0, 24))
 
         cards = ttk.Frame(f, style="Content.TFrame")
         cards.pack(fill=tk.BOTH, expand=True)
@@ -177,19 +183,24 @@ class RestaurantApp(tk.Tk):
         cards.columnconfigure(1, weight=1)
         cards.columnconfigure(2, weight=1)
 
-        for col, (icon, title, desc, action, page) in enumerate(
+        for col, (icon, title, desc, action, handler) in enumerate(
             (
-                ("🍽️", "Recomendaciones", "Descubre restaurantes compatibles con tu perfil y mood.", "Explorar", "rec"),
-                ("🧬", "ADN Gastronómico", "Visualiza tu perfil en barras y radar.", "Ver ADN", "profile"),
-                ("📊", "Insights", "Analytics de zonas, cocinas y compatibilidad.", "Ver insights", "insights"),
+                ("✨", "Crear perfil", "Cuéntanos qué te gusta y descubre lugares para ti.", "Comenzar", "create"),
+                ("🍽️", "Recomendaciones", "Lugares pensados para tu estilo.", "Explorar", "rec"),
+                ("🧬", "Tu estilo", "Conoce tu perfil gastronómico.", "Ver perfil", "profile"),
             )
         ):
-            card = HomeCard(cards, icon, title, desc, action, command=lambda p=page: self._nav(p))
-            card.grid(row=0, column=col, sticky=tk.NSEW, padx=(0 if col == 0 else 8, 8 if col < 2 else 0))
+            cmd = self._start_create_profile if handler == "create" else (lambda p=handler: self._nav(p))
+            card = HomeCard(cards, icon, title, desc, action, command=cmd)
+            card.grid(row=0, column=col, sticky=tk.NSEW, padx=(0 if col == 0 else 10, 10 if col < 2 else 0))
 
     def _build_page_onboarding(self):
         f = self._page("onboarding")
-        self._section_title(f, "Onboarding gastronómico", "15 preguntas para construir tu perfil Savory.")
+        self._section_title(
+            f,
+            "Crear perfil gastronómico",
+            "Cuéntanos qué te gusta — descubre lugares que encajen contigo.",
+        )
 
         form_card = ShadowCard(f, padx=24, pady=18)
         form_card.pack(fill=tk.X, pady=(0, 16))
@@ -232,16 +243,16 @@ class RestaurantApp(tk.Tk):
         actions.pack(fill=tk.X, pady=8)
         self.btn_import_gt = ttk.Button(
             actions,
-            text="Importar catálogo Guatemala (210+)",
+            text="Importar catálogo real (220)",
             style="Secondary.TButton",
             command=self._on_import_guatemala,
         )
         self.btn_import_gt.pack(side=tk.LEFT, padx=(0, 10))
         ttk.Button(
             actions,
-            text="Guardar perfil",
+            text="Crear perfil",
             style="Accent.TButton",
-            command=self._on_save_onboarding,
+            command=lambda: self._on_save_onboarding(auto_navigate=True),
         ).pack(side=tk.LEFT)
 
     def _build_page_profile(self):
@@ -312,7 +323,7 @@ class RestaurantApp(tk.Tk):
 
     def _build_page_rec(self):
         f = self._page("rec")
-        self._section_title(f, "Recomendador IA", "Personalizado por perfil + mood del día.")
+        self._section_title(f, "Recomendaciones", "Pensadas para tu estilo y mood del día.")
 
         self.mood_selector = MoodSelector(f)
         self.mood_selector.pack(fill=tk.X, pady=(0, 12))
@@ -322,7 +333,7 @@ class RestaurantApp(tk.Tk):
         ttk.Label(toolbar, text="Usuario", style="Subtitle.TLabel").pack(side=tk.LEFT, padx=(0, 8))
         self.rec_user_cb = ttk.Combobox(toolbar, state="readonly", width=34)
         self.rec_user_cb.pack(side=tk.LEFT)
-        ttk.Button(toolbar, text="✨ Recomendar ahora", style="Accent.TButton", command=self._on_recomendar).pack(
+        ttk.Button(toolbar, text="Recomendar", style="Accent.TButton", command=self._on_recomendar).pack(
             side=tk.LEFT, padx=16
         )
 
@@ -330,7 +341,7 @@ class RestaurantApp(tk.Tk):
         self.rec_scroll.pack(fill=tk.BOTH, expand=True)
         self.rec_empty = tk.Label(
             self.rec_scroll.inner,
-            text="Selecciona un usuario y pulsa «Recomendar ahora»\npara ver tus restaurantes ideales.",
+            text="Selecciona un usuario y pulsa «Recomendar»\npara descubrir lugares que encajan contigo.",
             font=styles.FONTS["body"],
             fg=styles.COLORS["muted"],
             bg=styles.COLORS["bg"],
@@ -345,7 +356,7 @@ class RestaurantApp(tk.Tk):
 
     def _build_page_graph(self):
         f = self._page("graph")
-        self._section_title(f, "Mapa de afinidades", "Visualiza conexiones entre tu perfil, preferencias y restaurantes.")
+        self._section_title(f, "Mapa de afinidades", "Conexiones entre tus gustos y los lugares.")
         graph_card = tk.Frame(
             f,
             bg=styles.COLORS["graph_bg"],
@@ -358,7 +369,7 @@ class RestaurantApp(tk.Tk):
 
     def _build_page_settings(self):
         f = self._page("settings")
-        self._section_title(f, "Configuración", "Catálogo, historial y preferencias del sistema.")
+        self._section_title(f, "Ajustes", "Catálogo, historial y preferencias.")
 
         sett = tk.Frame(
             f,
@@ -400,21 +411,12 @@ class RestaurantApp(tk.Tk):
     def _nav(self, page: str):
         self.sidebar.set_active(page)
 
-    def _tick_datetime(self):
-        self._datetime_var.set(datetime.now().strftime("%A %d %b · %H:%M").capitalize())
-        self.after(30000, self._tick_datetime)
-
-    def _rotate_quote(self):
-        self._quote_index = (self._quote_index + 1) % len(FOODIE_QUOTES)
-        self._quote_var.set(FOODIE_QUOTES[self._quote_index])
-        self.after(12000, self._rotate_quote)
-
     def _update_header_user(self):
         uid = self._current_user_id
         if not uid:
             self._active_user_var.set("")
             self._user_chip.pack_forget()
-            self._greeting_var.set("Bienvenido a Savory")
+            self._header_tagline_var.set("Buen apetito 🍷")
             return
         name = uid
         for u in self._usuarios:
@@ -422,9 +424,9 @@ class RestaurantApp(tk.Tk):
                 name = u.get("nombre") or uid
                 break
         first = name.split()[0] if name else uid
-        self._greeting_var.set("Hola, %s 👋" % first)
-        self._active_user_var.set("%s · %s" % (name, uid))
-        self._user_chip.pack(anchor=tk.E, pady=(4, 0))
+        self._header_tagline_var.set("Buen apetito 🍷")
+        self._active_user_var.set(first)
+        self._user_chip.pack(side=tk.RIGHT, padx=(0, 10))
 
     def _set_status(self, msg: str):
         self.status_var.set(msg)
@@ -517,7 +519,7 @@ class RestaurantApp(tk.Tk):
 
         self._run_async(work, on_ok=ok, busy_msg="Actualizando grafo...")
 
-    def _reload_users(self, select_id: str | None = None):
+    def _reload_users(self, select_id: str | None = None, on_complete=None):
         def work():
             return obtener_usuarios()
 
@@ -533,8 +535,26 @@ class RestaurantApp(tk.Tk):
             self._current_user_id = select_id
             self._update_header_user()
             self._refresh_graph(select_id)
+            if on_complete:
+                on_complete()
 
         self._run_async(work, on_ok=ok, busy_msg="Recargando usuarios...")
+
+    def _start_create_profile(self):
+        self.sidebar.set_active("onboarding")
+        self._reset_onboarding_form()
+        self._assign_next_user_id()
+
+    def _reset_onboarding_form(self):
+        self.onb_nombre.set("")
+        self.onb_presupuesto.set("")
+        self.onb_zona.set("")
+        if hasattr(self, "onb_zona_cb") and self._zonas:
+            self.onb_zona_cb["values"] = self._zonas
+        wizard = getattr(self, "wizard", None)
+        if wizard is not None:
+            wizard.reset()
+        self._on_wizard_step()
 
     def _on_wizard_step(self):
         wizard = getattr(self, "wizard", None)
@@ -544,8 +564,7 @@ class RestaurantApp(tk.Tk):
 
     def _on_wizard_complete(self):
         self.onb_presupuesto.set(str(self.wizard.get_presupuesto_sugerido()))
-        if messagebox.askyesno("Perfil listo", "¿Guardar tu perfil gastronómico ahora?"):
-            self._on_save_onboarding()
+        self._on_save_onboarding(auto_navigate=True)
 
     def _assign_next_user_id(self):
         def work():
@@ -562,15 +581,23 @@ class RestaurantApp(tk.Tk):
             return
 
         def work():
-            count = import_guatemala_restaurants()
+            result = import_guatemala_restaurants()
             ensure_preference_catalog()
-            return count
+            return result
 
-        def ok(count):
+        def ok(result):
             self._catalog_imported = True
             if hasattr(self, "btn_import_gt"):
                 self.btn_import_gt.state(["disabled"])
-            messagebox.showinfo("Catálogo", "Importados %d restaurantes." % count)
+            imported = result.get("imported", 0) if isinstance(result, dict) else int(result or 0)
+            removed = 0
+            if isinstance(result, dict):
+                removed = int(result.get("legacy_removed", 0) or 0) + int(result.get("stale_removed", 0) or 0)
+            messagebox.showinfo(
+                "Catálogo",
+                "Importados %d restaurantes reales.\nEliminados %d registros antiguos sin visitas."
+                % (imported, removed),
+            )
             self._zonas = obtener_zonas()
             self._refresh_reference_data()
             self._refresh_graph(self._current_user_id)
@@ -594,7 +621,7 @@ class RestaurantApp(tk.Tk):
             card = RestaurantCard(self.rec_scroll.inner, r, pref_labels=PREF_LABELS_ES)
             card.pack(fill=tk.X, pady=8, padx=4)
 
-    def _on_save_onboarding(self):
+    def _on_save_onboarding(self, auto_navigate: bool = False):
         uid = self.onb_id.get().strip() or generar_siguiente_user_id()
         nombre = self.onb_nombre.get().strip()
         zona = self.onb_zona.get().strip()
@@ -603,7 +630,7 @@ class RestaurantApp(tk.Tk):
             return
         if any(s is None for s in self.wizard._selections):
             messagebox.showwarning(
-                "Onboarding",
+                "Perfil",
                 "Completa los %d pasos del cuestionario." % len(ONBOARDING_STEPS),
             )
             return
@@ -623,10 +650,18 @@ class RestaurantApp(tk.Tk):
         def ok(new_id):
             self._current_user_id = new_id
             self._update_header_user()
-            messagebox.showinfo("¡Listo!", "Perfil guardado para %s." % new_id)
-            self._reload_users(select_id=new_id)
 
-        self._run_async(work, on_ok=ok, busy_msg="Guardando perfil...")
+            def after_reload():
+                if auto_navigate:
+                    self.sidebar.set_active("rec")
+                    self._nav("rec")
+                    self._on_recomendar()
+                else:
+                    messagebox.showinfo("¡Listo!", "Perfil guardado para %s." % new_id)
+
+            self._reload_users(select_id=new_id, on_complete=after_reload)
+
+        self._run_async(work, on_ok=ok, busy_msg="Guardando tu perfil…")
 
     def _current_user_id_from_cb(self, combobox: ttk.Combobox) -> str | None:
         idx = combobox.current()
@@ -717,7 +752,7 @@ class RestaurantApp(tk.Tk):
             self._refresh_graph(uid)
             warm_flash(self.rec_scroll)
 
-        self._run_async(work, on_ok=ok, busy_msg="Analizando afinidad gastronómica…")
+        self._run_async(work, on_ok=ok, busy_msg="Buscando lugares para ti…")
 
     def _on_historial(self):
         uid = self._current_user_id_from_cb(self.hist_user_cb)

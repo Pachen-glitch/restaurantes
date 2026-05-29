@@ -5,7 +5,7 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
-from styles import COLORS, FONTS, compat_color
+from styles import COLORS, FONTS, ONBOARDING, SPACING, compat_color
 from ui_animations import bind_hover_glow
 
 
@@ -34,28 +34,33 @@ class HomeCard(tk.Frame):
 
     def __init__(self, master, icon: str, title: str, description: str, action: str, command, **kwargs):
         super().__init__(master, bg=COLORS["bg"], **kwargs)
-        self._shadow = ShadowCard(self, padx=22, pady=20, shadow=4)
+        self._shadow = ShadowCard(
+            self,
+            padx=SPACING["card_pad_x"],
+            pady=SPACING["card_pad_y"],
+            shadow=4,
+        )
         self._shadow.pack(fill=tk.BOTH, expand=True)
 
         card = self._shadow.content()
-        tk.Label(card, text=icon, font=("Segoe UI", 30), bg=COLORS["surface2"]).pack(anchor=tk.W)
+        tk.Label(card, text=icon, font=("Segoe UI", 28), bg=COLORS["surface2"]).pack(anchor=tk.W)
         tk.Label(
             card,
             text=title,
             font=FONTS["card_title"],
             fg=COLORS["text"],
             bg=COLORS["surface2"],
-        ).pack(anchor=tk.W, pady=(10, 6))
+        ).pack(anchor=tk.W, pady=(12, 8))
         tk.Label(
             card,
             text=description,
-            font=FONTS["small"],
+            font=FONTS["body"],
             fg=COLORS["muted"],
             bg=COLORS["surface2"],
-            wraplength=260,
+            wraplength=240,
             justify=tk.LEFT,
-        ).pack(anchor=tk.W, pady=(0, 16))
-        ttk.Button(card, text=action, style="Accent.TButton", command=command).pack(anchor=tk.W)
+        ).pack(anchor=tk.W, pady=(0, 18))
+        ttk.Button(card, text=action, style="Secondary.TButton", command=command).pack(anchor=tk.W)
 
         for widget in (self, card):
             widget.bind("<Enter>", self._on_enter)
@@ -66,6 +71,177 @@ class HomeCard(tk.Frame):
 
     def _on_leave(self, _event=None):
         self._shadow.inner.configure(highlightbackground=COLORS["card_border"])
+
+
+class OnboardingOptionCard(tk.Frame):
+    """Card clickeable para opciones del onboarding con icono y texto legibles."""
+
+    def __init__(
+        self,
+        master,
+        text: str,
+        emoji: str = "",
+        selected: bool = False,
+        card_layout: bool = False,
+        command=None,
+        **kwargs,
+    ):
+        bg = COLORS["accent"] if selected else COLORS["surface2"]
+        fg = COLORS["text_light"] if selected else COLORS["text"]
+        border = COLORS["accent2"] if selected else COLORS["card_border"]
+        min_h = ONBOARDING["card_min_height"] if card_layout else ONBOARDING["list_min_height"]
+
+        super().__init__(
+            master,
+            bg=border,
+            padx=1,
+            pady=1,
+            cursor="hand2",
+            **kwargs,
+        )
+        self._command = command
+        self._selected = selected
+        self._card_layout = card_layout
+
+        self.inner = tk.Frame(self, bg=bg, padx=ONBOARDING["card_pad_x"], pady=ONBOARDING["card_pad_y"])
+        self.inner.pack(fill=tk.BOTH, expand=True)
+        self.configure(height=min_h)
+        self.pack_propagate(False)
+
+        emoji_text = (emoji or "").strip()
+        label_text = (text or "").strip()
+        if card_layout and emoji_text:
+            tk.Label(
+                self.inner,
+                text=emoji_text,
+                font=FONTS["option_emoji"],
+                fg=fg,
+                bg=bg,
+                anchor=tk.CENTER,
+                justify=tk.CENTER,
+            ).pack(fill=tk.X, pady=(4, 8))
+        tk.Label(
+            self.inner,
+            text=label_text,
+            font=FONTS["option"] if card_layout else FONTS["option_compact"],
+            fg=fg,
+            bg=bg,
+            wraplength=240 if card_layout else 320,
+            justify=tk.CENTER,
+            anchor=tk.CENTER,
+        ).pack(fill=tk.BOTH, expand=True)
+
+        for widget in (self, self.inner):
+            widget.bind("<Button-1>", self._on_click)
+            widget.bind("<Enter>", self._on_enter)
+            widget.bind("<Leave>", self._on_leave)
+        for child in self.inner.winfo_children():
+            child.bind("<Button-1>", self._on_click)
+
+    def _set_inner_colors(self, border: str, bg: str, fg: str) -> None:
+        self.configure(bg=border)
+        self.inner.configure(bg=bg)
+        for child in self.inner.winfo_children():
+            child.configure(bg=bg, fg=fg)
+
+    def _on_click(self, _event=None):
+        if self._command:
+            self._command()
+
+    def _on_enter(self, _event=None):
+        if self._selected:
+            return
+        self._set_inner_colors(COLORS["accent_warm"], COLORS["card_hover"], COLORS["text"])
+
+    def _on_leave(self, _event=None):
+        if self._selected:
+            self._set_inner_colors(COLORS["accent2"], COLORS["accent"], COLORS["text_light"])
+            return
+        self._set_inner_colors(COLORS["card_border"], COLORS["surface2"], COLORS["text"])
+
+
+class OnboardingOptionGrid(tk.Frame):
+    """Grid responsivo con scroll para opciones del onboarding."""
+
+    def __init__(self, master, **kwargs):
+        super().__init__(master, bg=COLORS["bg"], **kwargs)
+        self.canvas = tk.Canvas(self, bg=COLORS["bg"], highlightthickness=0, borderwidth=0)
+        self.scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.inner = tk.Frame(self.canvas, bg=COLORS["bg"])
+        self._window = self.canvas.create_window((0, 0), window=self.inner, anchor=tk.NW)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.inner.bind("<Configure>", self._on_inner_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        self.bind_all("<MouseWheel>", self._on_mousewheel, add="+")
+        self._cards: list[OnboardingOptionCard] = []
+
+    def _on_inner_configure(self, _event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        self.canvas.itemconfigure(self._window, width=event.width)
+
+    def _on_mousewheel(self, event):
+        if not self.winfo_ismapped():
+            return
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def _column_count(self, option_count: int, card_layout: bool) -> int:
+        width = max(self.canvas.winfo_width(), self.winfo_width(), 640)
+        if card_layout:
+            if width >= 920:
+                return min(3, option_count)
+            if width >= 620:
+                return min(2, option_count)
+            return 1
+        return 2 if width >= 720 else 1
+
+    def render(
+        self,
+        options: list[dict],
+        selected_idx: int | None,
+        card_layout: bool,
+        on_select,
+    ) -> None:
+        for card in self._cards:
+            card.destroy()
+        self._cards.clear()
+
+        valid = []
+        valid_indices: list[int] = []
+        for idx, opt in enumerate(options):
+            text = str(opt.get("text") or "").strip()
+            if not text:
+                continue
+            valid_indices.append(idx)
+            valid.append({**opt, "text": text})
+
+        cols = self._column_count(len(valid), card_layout)
+        gap = ONBOARDING["card_gap"]
+        for c in range(cols):
+            self.inner.columnconfigure(c, weight=1, uniform="onb_col")
+
+        selected_display = None
+        if selected_idx is not None and selected_idx in valid_indices:
+            selected_display = valid_indices.index(selected_idx)
+
+        for i, opt in enumerate(valid):
+            row, col = divmod(i, cols)
+            source_idx = valid_indices[i]
+            card = OnboardingOptionCard(
+                self.inner,
+                text=opt["text"],
+                emoji=str(opt.get("emoji") or ""),
+                selected=selected_display == i,
+                card_layout=card_layout,
+                command=lambda idx=source_idx, option=opt: on_select(idx, option),
+            )
+            card.grid(row=row, column=col, sticky=tk.NSEW, padx=gap // 2, pady=gap // 2)
+            self._cards.append(card)
+
+        self.after(10, self._on_inner_configure)
 
 
 class ScrollableFrame(ttk.Frame):
@@ -290,12 +466,12 @@ class Sidebar(tk.Frame):
 
     NAV_ITEMS = [
         ("home", "🏠", "Inicio"),
-        ("rec", "✨", "Recomendador"),
-        ("profile", "🧬", "ADN Gastronómico"),
-        ("insights", "📊", "Insights"),
-        ("onboarding", "🧠", "Onboarding"),
-        ("graph", "🌐", "Grafo"),
-        ("settings", "⚙️", "Config"),
+        ("rec", "🍽️", "Descubrir"),
+        ("profile", "🧬", "Tu estilo"),
+        ("insights", "📊", "Tendencias"),
+        ("onboarding", "✨", "Crear perfil"),
+        ("graph", "🌐", "Conexiones"),
+        ("settings", "⚙️", "Ajustes"),
     ]
 
     def __init__(self, master, on_navigate, **kwargs):
@@ -309,8 +485,8 @@ class Sidebar(tk.Frame):
         brand.pack(fill=tk.X, padx=20)
         tk.Label(
             brand,
-            text="🍷 Savory",
-            font=("Segoe UI", 20, "bold"),
+            text="Savory",
+            font=FONTS["brand"],
             fg=COLORS["text_light"],
             bg=COLORS["sidebar"],
         ).pack(anchor=tk.W)

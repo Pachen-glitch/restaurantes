@@ -5,9 +5,10 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
-from styles import COLORS, FONTS
+from styles import COLORS, FONTS, ONBOARDING
+from ui_widgets import OnboardingOptionGrid
 
-ONBOARDING_STEPS = [
+_RAW_ONBOARDING_STEPS = [
     {
         "id": "base",
         "title": "Base de tus comidas",
@@ -72,10 +73,10 @@ ONBOARDING_STEPS = [
             {"text": "Japonesa", "emoji": "🍣", "weights": {"pref_japonesa": 5, "sabor_umami": 3}},
             {"text": "Mexicana", "emoji": "🌮", "weights": {"street_food": 4, "spicy": 4, "pref_guatemalteca": 2}},
             {"text": "Americana", "emoji": "🍔", "weights": {"comfort_food": 4, "fast_food": 3, "casual": 2}},
-            {"text": "Coreana", "emoji": "🇰🇷", "weights": {"pref_coreana": 5, "spicy": 3}},
+            {"text": "Coreana", "emoji": "🍜", "weights": {"pref_coreana": 5, "spicy": 3}},
             {"text": "Tailandesa", "emoji": "🌶️", "weights": {"spicy": 5, "explorador": 3, "sabor_fresco": 2}},
-            {"text": "Mediterránea", "emoji": "🫒", "weights": {"pref_mediterranea": 5, "saludable": 3}},
-            {"text": "Guatemalteca", "emoji": "🇬🇹", "weights": {"pref_guatemalteca": 5, "tradicional": 4}},
+            {"text": "Mediterránea", "emoji": "🥗", "weights": {"pref_mediterranea": 5, "saludable": 3}},
+            {"text": "Guatemalteca", "emoji": "🌽", "weights": {"pref_guatemalteca": 5, "tradicional": 4}},
             {"text": "Francesa", "emoji": "🥐", "weights": {"gourmet": 5, "elegant": 4, "premium": 2}},
         ],
     },
@@ -179,6 +180,57 @@ ONBOARDING_STEPS = [
     },
 ]
 
+
+def _sanitize_option(option: dict) -> dict | None:
+    text = str(option.get("text") or "").strip()
+    if not text:
+        return None
+    cleaned = dict(option)
+    cleaned["text"] = text
+    emoji = str(option.get("emoji") or "").strip()
+    if emoji:
+        cleaned["emoji"] = emoji
+    else:
+        cleaned.pop("emoji", None)
+    weights = option.get("weights")
+    if not isinstance(weights, dict) or not weights:
+        return None
+    return cleaned
+
+
+def _sanitize_onboarding_steps(steps: list[dict]) -> list[dict]:
+    sanitized: list[dict] = []
+    for step in steps:
+        options = []
+        for option in step.get("options") or []:
+            cleaned = _sanitize_option(option)
+            if cleaned:
+                options.append(cleaned)
+        if not options:
+            continue
+        title = str(step.get("title") or "").strip() or "Pregunta"
+        subtitle = str(step.get("subtitle") or "").strip() or title
+        sanitized.append({**step, "title": title, "subtitle": subtitle, "options": options})
+    return sanitized
+
+
+ONBOARDING_STEPS = _sanitize_onboarding_steps(_RAW_ONBOARDING_STEPS)
+
+
+def validate_onboarding_steps() -> dict:
+    """Valida que cada paso tenga opciones renderizables."""
+    issues: list[str] = []
+    for i, step in enumerate(ONBOARDING_STEPS, start=1):
+        if not step.get("options"):
+            issues.append("Paso %d sin opciones validas" % i)
+        for j, opt in enumerate(step.get("options") or [], start=1):
+            if not str(opt.get("text") or "").strip():
+                issues.append("Paso %d opcion %d sin texto" % (i, j))
+    return {"valid": len(issues) == 0, "steps": len(ONBOARDING_STEPS), "issues": issues}
+
+
+assert validate_onboarding_steps()["valid"], "Onboarding invalido: %s" % validate_onboarding_steps()["issues"]
+
 FOOD_TO_CUISINE = {
     "pref_japonesa": "Japonesa",
     "pref_italiana": "Italiana",
@@ -228,6 +280,9 @@ class OnboardingWizard(tk.Frame):
         self._presupuesto_rango: str | None = None
         self._selections: list[int | None] = [None] * len(ONBOARDING_STEPS)
         self._pending_after_id: str | None = None
+        self._resize_after: str | None = None
+        self._last_layout_width = 0
+        self._rendering = False
         self._transitioning = False
 
         self.progress_var = tk.DoubleVar(value=(1 / len(ONBOARDING_STEPS)) * 100)
@@ -268,13 +323,15 @@ class OnboardingWizard(tk.Frame):
             font=FONTS["question"],
             fg=COLORS["text"],
             bg=COLORS["bg"],
-            wraplength=720,
+            wraplength=760,
             justify=tk.LEFT,
+            anchor=tk.W,
         )
-        self._question_label.pack(anchor=tk.W, padx=12, pady=(8, 24))
+        self._question_label.pack(anchor=tk.W, padx=12, pady=(8, 20))
 
-        self.options_frame = tk.Frame(self.content, bg=COLORS["bg"])
-        self.options_frame.pack(fill=tk.BOTH, expand=True, padx=4)
+        self.options_frame = OnboardingOptionGrid(self.content)
+        self.options_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=(0, 4))
+        self.options_frame.bind("<Configure>", self._on_options_resize)
 
         nav = tk.Frame(self, bg=COLORS["bg"])
         nav.pack(fill=tk.X, pady=(16, 0))
@@ -282,6 +339,15 @@ class OnboardingWizard(tk.Frame):
         self.btn_prev.pack(side=tk.LEFT)
 
         self._render_step(notify=False)
+
+    def _on_options_resize(self, _event=None):
+        width = self.options_frame.winfo_width()
+        if width <= 1 or width == self._last_layout_width:
+            return
+        self._last_layout_width = width
+        if hasattr(self, "_resize_after") and self._resize_after:
+            self.after_cancel(self._resize_after)
+        self._resize_after = self.after(150, lambda: self._render_step(notify=False, relayout=True))
 
     def get_final_profile(self) -> dict[str, float]:
         return dict(sorted(self._scores.items(), key=lambda x: (-x[1], x[0])))
@@ -325,46 +391,38 @@ class OnboardingWizard(tk.Frame):
 
         fade_out()
 
-    def _render_step(self, notify: bool = True) -> None:
-        if self._pending_after_id:
-            self.after_cancel(self._pending_after_id)
-            self._pending_after_id = None
+    def _render_step(self, notify: bool = True, relayout: bool = False) -> None:
+        if self._rendering:
+            return
+        self._rendering = True
+        try:
+            if self._pending_after_id:
+                self.after_cancel(self._pending_after_id)
+                self._pending_after_id = None
 
-        step = ONBOARDING_STEPS[self._step_index]
-        n = len(ONBOARDING_STEPS)
-        self.step_label_var.set("Paso %d de %d · %s" % (self._step_index + 1, n, step["title"]))
-        self.progress_var.set(((self._step_index + 1) / n) * 100)
-        self.question_var.set(step.get("subtitle") or step.get("title") or "")
+            step = ONBOARDING_STEPS[self._step_index]
+            n = len(ONBOARDING_STEPS)
+            self.step_label_var.set("Paso %d de %d · %s" % (self._step_index + 1, n, step["title"]))
+            self.progress_var.set(((self._step_index + 1) / n) * 100)
+            self.question_var.set(step.get("subtitle") or step.get("title") or "")
 
-        for w in self.options_frame.winfo_children():
-            w.destroy()
+            wrap = max(420, min(860, self.winfo_width() - 120))
+            self._question_label.configure(wraplength=wrap)
 
-        selected_idx = self._selections[self._step_index]
-        card_layout = bool(step.get("card_layout"))
-        cols = 3 if card_layout else 2
-        option_count = len(step["options"])
-
-        for i, opt in enumerate(step["options"]):
-            label = opt.get("text", "")
-            if card_layout:
-                label = "%s\n%s" % (opt.get("emoji", ""), label)
-            style = "Selected.OptionCard.TButton" if selected_idx == i else "OptionCard.TButton"
-            btn = ttk.Button(
-                self.options_frame,
-                text=label,
-                style=style,
-                command=lambda idx=i, o=opt: self._select_option(idx, o),
+            selected_idx = self._selections[self._step_index]
+            card_layout = bool(step.get("card_layout"))
+            self.options_frame.render(
+                step.get("options") or [],
+                selected_idx,
+                card_layout,
+                self._select_option,
             )
-            btn.grid(row=i // cols, column=i % cols, sticky=tk.NSEW, padx=10, pady=10)
-        for c in range(cols):
-            self.options_frame.columnconfigure(c, weight=1)
-        rows_needed = (option_count + cols - 1) // cols
-        for r in range(rows_needed):
-            self.options_frame.rowconfigure(r, weight=1)
 
-        self.btn_prev.state(["!disabled"] if self._step_index > 0 else ["disabled"])
-        if notify and self._on_step_change:
-            self._on_step_change()
+            self.btn_prev.state(["!disabled"] if self._step_index > 0 else ["disabled"])
+            if notify and self._on_step_change:
+                self._on_step_change()
+        finally:
+            self._rendering = False
 
     def _select_option(self, index: int, option: dict) -> None:
         prev = self._selections[self._step_index]
