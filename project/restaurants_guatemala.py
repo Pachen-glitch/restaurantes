@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote_plus
 
 CUISINES = [
     "Japonesa",
@@ -528,6 +529,165 @@ def validate_restaurant_classification(restaurant: dict[str, Any]) -> list[str]:
     return issues
 
 
+def _google_maps_url(nombre: str, zona: str) -> str:
+    query = quote_plus("%s %s Guatemala City restaurante" % (nombre, zona))
+    return "https://www.google.com/maps/search/?api=1&query=%s" % query
+
+
+def _google_search_url(nombre: str, zona: str) -> str:
+    query = quote_plus("%s %s Guatemala restaurante" % (nombre, zona))
+    return "https://www.google.com/search?q=%s" % query
+
+
+# URLs curadas por nombre (cadenas comparten link entre zonas).
+KNOWN_RESTAURANT_LINKS: dict[str, dict[str, str]] = {
+    "Hacienda Real": {
+        "website_url": "https://www.haciendareal.com.gt/",
+        "instagram_url": "https://www.instagram.com/haciendarealgt/",
+        "facebook_url": "https://www.facebook.com/haciendarealgt/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Hacienda+Real+Guatemala",
+    },
+    "Tre Fratelli": {
+        "website_url": "https://www.trefratelli.com.gt/",
+        "instagram_url": "https://www.instagram.com/trefratelli.gt/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Tre+Fratelli+Zona+10+Guatemala",
+    },
+    "Kacao": {
+        "website_url": "https://www.kacao.com.gt/",
+        "instagram_url": "https://www.instagram.com/kacaogt/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Kacao+Restaurante+Guatemala",
+    },
+    "Tamarindos": {
+        "website_url": "https://www.tamarindos.com.gt/",
+        "instagram_url": "https://www.instagram.com/tamarindosgt/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Tamarindos+Guatemala",
+    },
+    "Saúl": {
+        "website_url": "https://www.restaurantesaul.com/",
+        "instagram_url": "https://www.instagram.com/restaurantesaul/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Restaurante+Saul+Zona+10+Guatemala",
+    },
+    "Mercado 24": {
+        "website_url": "https://www.mercado24.gt/",
+        "instagram_url": "https://www.instagram.com/mercado24gt/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Mercado+24+Zona+10+Guatemala",
+    },
+    "Ambia": {
+        "website_url": "https://www.ambia.com.gt/",
+        "instagram_url": "https://www.instagram.com/ambiagt/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Ambia+Restaurante+Guatemala",
+    },
+    "Shiro": {
+        "website_url": "https://www.shiro.com.gt/",
+        "instagram_url": "https://www.instagram.com/shirogt/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Shiro+Sushi+Guatemala",
+    },
+    "Pecorino": {
+        "website_url": "https://www.pecorino.com.gt/",
+        "instagram_url": "https://www.instagram.com/pecorinogt/",
+    },
+    "Porcino": {
+        "website_url": "https://www.porcino.com.gt/",
+        "instagram_url": "https://www.instagram.com/porcinogt/",
+    },
+    "Monoloco": {
+        "website_url": "https://www.monoloco.com/",
+        "instagram_url": "https://www.instagram.com/monolocogt/",
+    },
+    "Sublime": {
+        "website_url": "https://www.sublime.gt/",
+        "instagram_url": "https://www.instagram.com/sublimegt/",
+    },
+    "Gracia Cocina de Autor": {
+        "website_url": "https://www.gracia.gt/",
+        "instagram_url": "https://www.instagram.com/graciacocinadeautor/",
+    },
+    "Los Tres Tiempos": {
+        "website_url": "https://www.lostrestiempos.com/",
+        "instagram_url": "https://www.instagram.com/lostrestiempos/",
+    },
+    "Frida Kahlo": {
+        "website_url": "https://www.fridakahlo.com.gt/",
+        "instagram_url": "https://www.instagram.com/fridakahlogt/",
+    },
+    "Atempo": {
+        "website_url": "https://www.atempo.gt/",
+        "instagram_url": "https://www.instagram.com/atempogt/",
+    },
+    "Marena": {
+        "website_url": "https://www.marena.gt/",
+        "instagram_url": "https://www.instagram.com/marenagt/",
+    },
+    "Kaffeine": {
+        "website_url": "https://www.kaffeine.com.gt/",
+        "instagram_url": "https://www.instagram.com/kaffeinegt/",
+    },
+    "Hard Rock Cafe": {
+        "website_url": "https://www.hardrockcafe.com/location/guatemala-city/",
+        "instagram_url": "https://www.instagram.com/hardrockcafeguatemala/",
+    },
+    "Burger King": {
+        "website_url": "https://www.burgerking.com.gt/",
+        "instagram_url": "https://www.instagram.com/burgerkinggt/",
+        "facebook_url": "https://www.facebook.com/BurgerKingGuatemala/",
+    },
+    "McDonald's": {
+        "website_url": "https://www.mcdonalds.com.gt/",
+        "instagram_url": "https://www.instagram.com/mcdonalds_guatemala/",
+    },
+    "Wendy's": {
+        "website_url": "https://www.wendys.com.gt/",
+        "instagram_url": "https://www.instagram.com/wendysguatemala/",
+    },
+    "Starbucks": {
+        "website_url": "https://www.starbucks.com.gt/",
+        "instagram_url": "https://www.instagram.com/starbucksgt/",
+    },
+    "Pollo Campero": {
+        "website_url": "https://www.campero.com/",
+        "instagram_url": "https://www.instagram.com/pollocampero/",
+    },
+    "Chili's": {
+        "website_url": "https://www.chilis.com/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Chili%27s+Guatemala",
+    },
+    "Outback Steakhouse": {
+        "website_url": "https://www.outback.com/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Outback+Steakhouse+Guatemala",
+    },
+    "P.F. Chang's": {
+        "website_url": "https://www.pfchangs.com/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=P.F.+Chang%27s+Guatemala",
+    },
+    "Olive Garden": {
+        "website_url": "https://www.olivegarden.com/",
+        "maps_url": "https://www.google.com/maps/search/?api=1&query=Olive+Garden+Guatemala",
+    },
+}
+
+
+def build_restaurant_links(
+    nombre: str,
+    zona: str,
+    overrides: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Resuelve URLs del restaurante con fallback a Google Maps / busqueda."""
+    links = dict(KNOWN_RESTAURANT_LINKS.get(nombre, {}))
+    if overrides:
+        links.update({k: v for k, v in overrides.items() if v})
+    links.setdefault("website_url", "")
+    links.setdefault("instagram_url", "")
+    links.setdefault("facebook_url", "")
+    if not links.get("maps_url"):
+        links["maps_url"] = _google_maps_url(nombre, zona)
+    links["search_url"] = _google_search_url(nombre, zona)
+    return links
+
+
+def get_restaurant_links(nombre: str, zona: str) -> dict[str, str]:
+    return build_restaurant_links(nombre, zona)
+
+
 def validate_restaurant_catalog(restaurants: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     rows = restaurants if restaurants is not None else RESTAURANTS
     flagged: list[dict[str, Any]] = []
@@ -550,10 +710,12 @@ def _curated_entry(
     descripcion: str,
     profile: str,
     pref_boost: dict[str, int] | None = None,
+    link_overrides: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     archetype, score_map, prefs = _build_semantic_prefs(
         nombre, cocina, tipo, ambiente, price_tier, profile, pref_boost
     )
+    links = build_restaurant_links(nombre, zona, link_overrides)
     return {
         "id": "",
         "nombre": nombre,
@@ -574,15 +736,42 @@ def _curated_entry(
         "romantic_score": score_map["romantic_score"],
         "fast_service_score": score_map["fast_service_score"],
         "prefs": prefs,
+        "website_url": links["website_url"],
+        "instagram_url": links["instagram_url"],
+        "facebook_url": links["facebook_url"],
+        "maps_url": links["maps_url"],
+        "search_url": links["search_url"],
     }
 
 
 
 def _real_entry(
-    nombre, zona, cocina, tipo, ambiente, rating, tier, precio, descripcion, profile, boost=None,
+    nombre,
+    zona,
+    cocina,
+    tipo,
+    ambiente,
+    rating,
+    tier,
+    precio,
+    descripcion,
+    profile,
+    boost=None,
+    links=None,
 ):
     return _curated_entry(
-        nombre, zona, cocina, tipo, ambiente, rating, tier, precio, descripcion, profile, boost or {}
+        nombre,
+        zona,
+        cocina,
+        tipo,
+        ambiente,
+        rating,
+        tier,
+        precio,
+        descripcion,
+        profile,
+        boost or {},
+        link_overrides=links,
     )
 
 
@@ -829,6 +1018,11 @@ RESTAURANT_SEMANTIC_INDEX: dict[str, dict[str, Any]] = {
         "cocina": r.get("cocina", ""),
         "tipo": r.get("tipo", ""),
         "price_tier": r.get("price_tier", ""),
+        "website_url": r.get("website_url", ""),
+        "instagram_url": r.get("instagram_url", ""),
+        "facebook_url": r.get("facebook_url", ""),
+        "maps_url": r.get("maps_url", ""),
+        "search_url": r.get("search_url", ""),
     }
     for r in RESTAURANTS
 }

@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 
+from restaurant_links import enrich_restaurant_links
+
 from neo4j.exceptions import Neo4jError
 from database import get_session
 from user_manager import ensure_preference_catalog
@@ -180,6 +182,11 @@ def _restaurant_scoring_index() -> dict[str, dict]:
             "tipo": meta.get("tipo") or "",
             "price_tier": meta.get("price_tier") or "",
             "nombre": meta.get("nombre") or "",
+            "website_url": meta.get("website_url") or "",
+            "instagram_url": meta.get("instagram_url") or "",
+            "facebook_url": meta.get("facebook_url") or "",
+            "maps_url": meta.get("maps_url") or "",
+            "search_url": meta.get("search_url") or "",
         }
     for rid, prefs in neo4j_prefs.items():
         if rid not in index:
@@ -897,6 +904,7 @@ def recomendar_restaurantes_inteligente(usuario_id: str, mood: str | None = None
         item["rest_archetype"] = rest_archetype
         item["explicacion"] = explicacion
         item["coincidencias"] = coincidencias
+        enrich_restaurant_links(item)
         scored.append(item)
 
     scored.sort(

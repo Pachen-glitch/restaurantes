@@ -133,6 +133,11 @@ def _restaurant_payload(restaurant: dict) -> dict:
         "aesthetic_score": int(restaurant.get("aesthetic_score") or 0),
         "romantic_score": int(restaurant.get("romantic_score") or 0),
         "fast_service_score": int(restaurant.get("fast_service_score") or 0),
+        "website_url": restaurant.get("website_url", ""),
+        "instagram_url": restaurant.get("instagram_url", ""),
+        "facebook_url": restaurant.get("facebook_url", ""),
+        "maps_url": restaurant.get("maps_url", ""),
+        "search_url": restaurant.get("search_url", ""),
     }
 
 
@@ -155,7 +160,12 @@ def _batch_import_restaurants(session, batch: list[dict]) -> None:
             rest.comfort_score = r.comfort_score,
             rest.aesthetic_score = r.aesthetic_score,
             rest.romantic_score = r.romantic_score,
-            rest.fast_service_score = r.fast_service_score
+            rest.fast_service_score = r.fast_service_score,
+            rest.website_url = r.website_url,
+            rest.instagram_url = r.instagram_url,
+            rest.facebook_url = r.facebook_url,
+            rest.maps_url = r.maps_url,
+            rest.search_url = r.search_url
         WITH rest, r
         MATCH (z:Zone {nombre: r.zona})
         MERGE (rest)-[:LOCATED_IN]->(z)

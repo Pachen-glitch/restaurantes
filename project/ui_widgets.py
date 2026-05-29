@@ -5,8 +5,33 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
+from restaurant_links import open_restaurant_in_browser
 from styles import COLORS, FONTS, ONBOARDING, SPACING, compat_color
 from ui_animations import bind_hover_glow
+
+
+def _bind_link_widget(widget, command, *, hover_bg: str | None = None, base_bg: str | None = None):
+    """Cursor de link + highlight suave al hover."""
+    base_bg = base_bg or widget.cget("bg")
+    hover_bg = hover_bg or COLORS.get("accent_light", "#FDF2F0")
+
+    def on_enter(_event=None):
+        widget.configure(cursor="hand2")
+        try:
+            widget.configure(bg=hover_bg)
+        except tk.TclError:
+            pass
+
+    def on_leave(_event=None):
+        widget.configure(cursor="")
+        try:
+            widget.configure(bg=base_bg)
+        except tk.TclError:
+            pass
+
+    widget.bind("<Enter>", on_enter)
+    widget.bind("<Leave>", on_leave)
+    widget.bind("<Button-1>", lambda _e: command())
 
 
 class ShadowCard(tk.Frame):
@@ -350,9 +375,11 @@ class RestaurantCard(tk.Frame):
         super().__init__(master, bg=COLORS["bg"], **kwargs)
         pref_labels = pref_labels or {}
         pref_hashtags = pref_hashtags or {}
+        self.data = data
         shadow = ShadowCard(self, padx=0, pady=0, shadow=4)
         shadow.pack(fill=tk.BOTH, expand=True)
         card = shadow.content()
+        self._card = card
         bind_hover_glow(card, COLORS["card_border"], COLORS["glow"])
 
         cocinas = data.get("cocinas") or []
@@ -362,9 +389,18 @@ class RestaurantCard(tk.Frame):
         compat = float(data.get("compatibilidad_pct") or data.get("score_total") or 0)
         compat_c = compat_color(compat)
 
-        hero = tk.Canvas(card, height=96, highlightthickness=0, bd=0, bg=COLORS["surface2"])
+        def open_primary(_event=None):
+            if on_select:
+                on_select(data)
+            open_restaurant_in_browser(data)
+
+        def open_link(key: str):
+            open_restaurant_in_browser(data, link_key=key)
+
+        hero = tk.Canvas(card, height=96, highlightthickness=0, bd=0, bg=COLORS["surface2"], cursor="hand2")
         hero.pack(fill=tk.X)
         hero.bind("<Configure>", lambda e, c=hero, em=emoji: self._draw_hero(c, em))
+        _bind_link_widget(hero, open_primary, base_bg=COLORS["surface2"], hover_bg=COLORS["surface"])
 
         body = tk.Frame(card, bg=COLORS["surface2"], padx=18, pady=14)
         body.pack(fill=tk.X)
@@ -373,7 +409,17 @@ class RestaurantCard(tk.Frame):
         top.pack(fill=tk.X)
         info = tk.Frame(top, bg=COLORS["surface2"])
         info.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        tk.Label(info, text=data.get("nombre") or "Restaurante", font=FONTS["card_title"], fg=COLORS["text"], bg=COLORS["surface2"], anchor=tk.W).pack(fill=tk.X)
+        name_lbl = tk.Label(
+            info,
+            text=data.get("nombre") or "Restaurante",
+            font=FONTS["card_title"],
+            fg=COLORS["text"],
+            bg=COLORS["surface2"],
+            anchor=tk.W,
+            cursor="hand2",
+        )
+        name_lbl.pack(fill=tk.X)
+        _bind_link_widget(name_lbl, open_primary, base_bg=COLORS["surface2"], hover_bg=COLORS["accent_light"])
         tk.Label(
             info,
             text="📍 %s   ⭐ %.1f   💎 %s" % (data.get("zona") or "—", float(data.get("rating") or 0), tier),
@@ -433,8 +479,50 @@ class RestaurantCard(tk.Frame):
                 side=tk.LEFT, padx=(0, 6)
             )
 
-        if on_select:
-            card.bind("<Button-1>", lambda _e: on_select(data))
+        actions = tk.Frame(body, bg=COLORS["surface2"])
+        actions.pack(fill=tk.X, pady=(12, 0))
+
+        btn_frame = tk.Frame(actions, bg=COLORS["surface2"])
+        btn_frame.pack(side=tk.LEFT)
+        visit_btn = tk.Label(
+            btn_frame,
+            text="Ver restaurante",
+            font=FONTS["badge"],
+            fg=COLORS["text_light"],
+            bg=COLORS["accent"],
+            padx=14,
+            pady=6,
+            cursor="hand2",
+        )
+        visit_btn.pack(side=tk.LEFT)
+        _bind_link_widget(visit_btn, open_primary, base_bg=COLORS["accent"], hover_bg=COLORS["accent2"])
+
+        icons = tk.Frame(actions, bg=COLORS["surface2"])
+        icons.pack(side=tk.RIGHT)
+        icon_specs = (
+            ("website_url", "🌐", "Sitio web"),
+            ("maps_url", "📍", "Google Maps"),
+            ("instagram_url", "📸", "Instagram"),
+        )
+        for key, glyph, _tip in icon_specs:
+            if not (data.get(key) or "").strip():
+                continue
+            icon = tk.Label(
+                icons,
+                text=glyph,
+                font=("Segoe UI", 13),
+                fg=COLORS["subtext"],
+                bg=COLORS["badge_soft"],
+                padx=8,
+                pady=4,
+                cursor="hand2",
+            )
+            icon.pack(side=tk.LEFT, padx=(6, 0))
+
+            def _icon_cmd(link_key: str = key):
+                open_link(link_key)
+
+            _bind_link_widget(icon, _icon_cmd, base_bg=COLORS["badge_soft"], hover_bg=COLORS["accent_light"])
 
     def _draw_hero(self, canvas: tk.Canvas, emoji: str) -> None:
         canvas.delete("all")
